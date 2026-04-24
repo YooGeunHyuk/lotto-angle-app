@@ -1,98 +1,75 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { allDraws, Draw } from '@/src/data/lottoData';
+import FixedPickContent from '@/src/screens/FixedPickContent';
+import HomeContent from '@/src/screens/HomeContent';
+import StatsContent from '@/src/screens/StatsContent';
+import SumGeneratorContent from '@/src/screens/SumGeneratorContent';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useRef, useState } from 'react';
+import { Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context'; // 🌟 여기서 한 번만 사용
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+const { width } = Dimensions.get('window');
 
-export default function HomeScreen() {
+const TABS = [
+  { label: '번호추천', icon: 'sparkles' },
+  { label: '고정추천', icon: 'pin' },
+  { label: '합계생성', icon: 'options' },
+  { label: '통계', icon: 'bar-chart' }
+];
+
+export default function App() {
+  const [page, setPage] = useState(0);
+  const [draws] = useState<Draw[]>(allDraws);
+  const [scrollEnabled, setScrollEnabled] = useState(true); 
+  const scrollRef = useRef<ScrollView>(null);
+
+  // ... (데이터 로딩 로직은 동일)
+
+  const goTo = (p: number) => {
+    scrollRef.current?.scrollTo({ x: p * width, animated: true });
+    setPage(p);
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <SafeAreaView style={s.safe} edges={['top']}> 
+      <View style={s.root}>
+        <ScrollView
+          ref={scrollRef}
+          horizontal
+          pagingEnabled
+          scrollEnabled={scrollEnabled} 
+          showsHorizontalScrollIndicator={false}
+          scrollEventThrottle={16}
+          onMomentumScrollEnd={e => setPage(Math.round(e.nativeEvent.contentOffset.x / width))}
+        >
+          <View style={{ width }}><HomeContent draws={draws} /></View>
+          <View style={{ width }}><FixedPickContent draws={draws} /></View>
+          <View style={{ width }}>
+            <SumGeneratorContent setParentScrollEnabled={setScrollEnabled} />
+          </View>
+          <View style={{ width }}><StatsContent draws={draws} /></View>
+        </ScrollView>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+        <View style={s.tabBar}>
+          {TABS.map((tab, i) => (
+            <TouchableOpacity key={tab.label} style={s.tab} onPress={() => goTo(i)}>
+              <Ionicons name={tab.icon as any} size={22} color={page === i ? '#1A1A1A' : '#BBBBBB'} />
+              <Text style={[s.tabText, page === i && s.tabActive]}>{tab.label}</Text>
+              {page === i && <View style={s.indicator} />}
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+    </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: '#FFFFFF' }, // 🌟 모든 페이지 배경색 통일
+  root: { flex: 1 },
+  tabBar: { flexDirection: 'row', backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#EEEEEE', paddingTop: 8, paddingBottom: 13 },
+  tab: { flex: 1, alignItems: 'center', justifyContent: 'flex-start', minHeight: 56, paddingTop: 2 },
+  tabText: { fontSize: 11, color: '#BBBBBB', fontWeight: '600', marginTop: 2 },
+  tabActive: { color: '#1A1A1A' },
+  indicator: { width: 20, height: 3, backgroundColor: '#D94F2A', borderRadius: 1.5, marginTop: 4 },
 });

@@ -1,17 +1,23 @@
 {
   "expo": {
-    "name": "LottoAnalyzer",
+    "name": "로또될각",
     "slug": "LottoAnalyzer",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "lottoanalyzer",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.meetyuuu.lottoanalyzer",
+      "infoPlist": {
+        "UIViewControllerBasedStatusBarAppearance": true,
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
+      "package": "com.meetyuuu.lottoanalyzer",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -38,11 +44,31 @@
             "backgroundColor": "#000000"
           }
         }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-5697680589501542~1429646675",
+          "iosAppId": "ca-app-pub-5697680589501542~7803483333"
+        }
       ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "e029e2f2-4393-4645-b48f-eb5d0ecd5da5"
+      }
+    },
+    "owner": "meetyuuu",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/e029e2f2-4393-4645-b48f-eb5d0ecd5da5"
     }
   }
 }
