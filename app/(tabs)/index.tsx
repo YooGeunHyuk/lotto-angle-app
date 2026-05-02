@@ -1,10 +1,12 @@
-import { allDraws, Draw } from '@/src/data/lottoData';
+import { allDraws, Draw, getRemoteDraws } from '@/src/data/lottoData';
+import { getUserDraws } from '@/src/data/drawStore';
 import FixedPickContent from '@/src/screens/FixedPickContent';
 import HomeContent from '@/src/screens/HomeContent';
+import MyTicketsContent from '@/src/screens/MyTicketsContent';
 import StatsContent from '@/src/screens/StatsContent';
 import SumGeneratorContent from '@/src/screens/SumGeneratorContent';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context'; // 🌟 여기서 한 번만 사용
 
@@ -12,18 +14,37 @@ const { width } = Dimensions.get('window');
 
 const TABS = [
   { label: '번호추천', icon: 'sparkles' },
+  { label: '내 번호', icon: 'ticket' },
   { label: '고정추천', icon: 'pin' },
   { label: '합계생성', icon: 'options' },
   { label: '통계', icon: 'bar-chart' }
 ];
 
+function mergeDraws(...drawGroups: Draw[][]): Draw[] {
+  const byDrawNo = new Map<number, Draw>();
+  drawGroups.forEach(draws => {
+    draws.forEach(draw => byDrawNo.set(draw.drwNo, draw));
+  });
+  return Array.from(byDrawNo.values()).sort((a, b) => a.drwNo - b.drwNo);
+}
+
 export default function App() {
   const [page, setPage] = useState(0);
-  const [draws] = useState<Draw[]>(allDraws);
+  const [draws, setDraws] = useState<Draw[]>(allDraws);
   const [scrollEnabled, setScrollEnabled] = useState(true); 
   const scrollRef = useRef<ScrollView>(null);
 
-  // ... (데이터 로딩 로직은 동일)
+  const loadDraws = useCallback(async () => {
+    const [remoteDraws, userDraws] = await Promise.all([
+      getRemoteDraws(),
+      getUserDraws(),
+    ]);
+    setDraws(mergeDraws(allDraws, remoteDraws, userDraws));
+  }, []);
+
+  useEffect(() => {
+    loadDraws();
+  }, [loadDraws]);
 
   const goTo = (p: number) => {
     scrollRef.current?.scrollTo({ x: p * width, animated: true });
@@ -43,6 +64,7 @@ export default function App() {
           onMomentumScrollEnd={e => setPage(Math.round(e.nativeEvent.contentOffset.x / width))}
         >
           <View style={{ width }}><HomeContent draws={draws} /></View>
+          <View style={{ width }}><MyTicketsContent draws={draws} /></View>
           <View style={{ width }}><FixedPickContent draws={draws} /></View>
           <View style={{ width }}>
             <SumGeneratorContent setParentScrollEnabled={setScrollEnabled} />

@@ -1,5 +1,8 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import rawData from '../../data/lotto_history.json';
 
+const REMOTE_LOTTO_URL = 'https://gist.githubusercontent.com/YooGeunHyuk/c43d9902c513e986c4a9ee2bd78eee33/raw/lotto.json';
+const REMOTE_DRAWS_CACHE_KEY = 'remote_lotto_draws_cache';
 
 export interface Draw {
   drwNo: number;
@@ -10,6 +13,56 @@ export interface Draw {
 }
 
 export const allDraws: Draw[] = rawData as Draw[];
+
+function normalizeDate(date: unknown): string {
+  return typeof date === 'string' ? date.replace(/-/g, '.') : '';
+}
+
+function normalizeDraw(raw: unknown): Draw | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const item = raw as Partial<Draw>;
+  const drwNo = Number(item.drwNo);
+  const numbers = Array.isArray(item.numbers) ? item.numbers.map(Number) : [];
+  const bonus = Number(item.bonus);
+
+  if (!Number.isInteger(drwNo) || drwNo < 1) return null;
+  if (numbers.length !== 6 || numbers.some(n => !Number.isInteger(n) || n < 1 || n > 45)) return null;
+  if (new Set(numbers).size !== 6) return null;
+  if (!Number.isInteger(bonus) || bonus < 1 || bonus > 45 || numbers.includes(bonus)) return null;
+
+  return {
+    drwNo,
+    drwNoDate: normalizeDate(item.drwNoDate),
+    numbers: numbers.slice().sort((a, b) => a - b),
+    bonus,
+  };
+}
+
+function normalizeDraws(raw: unknown): Draw[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map(normalizeDraw)
+    .filter((draw): draw is Draw => Boolean(draw))
+    .sort((a, b) => a.drwNo - b.drwNo);
+}
+
+export async function getRemoteDraws(): Promise<Draw[]> {
+  try {
+    const response = await fetch(`${REMOTE_LOTTO_URL}?t=${Date.now()}`);
+    if (!response.ok) throw new Error(`Remote lotto data failed: ${response.status}`);
+
+    const draws = normalizeDraws(await response.json());
+    await AsyncStorage.setItem(REMOTE_DRAWS_CACHE_KEY, JSON.stringify(draws));
+    return draws;
+  } catch {
+    try {
+      const cached = await AsyncStorage.getItem(REMOTE_DRAWS_CACHE_KEY);
+      return cached ? normalizeDraws(JSON.parse(cached)) : [];
+    } catch {
+      return [];
+    }
+  }
+}
 
 export function getFrequency(draws = allDraws): Record<number, number> {
   const freq: Record<number, number> = {};

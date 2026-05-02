@@ -34,12 +34,13 @@ const s = StyleSheet.create({
   wrap: {
     position: 'relative',
     alignItems: 'flex-end',
-    minWidth: 28,
-    paddingTop: 23,
+    width: 28,
+    height: 50,
+    justifyContent: 'flex-end',
   },
   infoButton: {
     position: 'absolute',
-    top: 0,
+    top: -10,
     right: 5,
     width: 18,
     height: 18,
@@ -58,7 +59,7 @@ const s = StyleSheet.create({
   },
   infoBubbleWrap: {
     position: 'absolute',
-    top: 24,
+    top: 15,
     right: 0,
     alignItems: 'flex-end',
     zIndex: 2,

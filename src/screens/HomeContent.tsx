@@ -38,9 +38,9 @@ export default function HomeContent({ draws }: { draws: Draw[] }) {
         contentContainerStyle={s.content}
       >
         <ScreenHeader
-          title="LOTTO"
+          title="로또될각"
           titleStyle={s.logo}
-          subtitle="이번 당첨 나야 나! 나야 나!"
+          subtitle="이번엔 진짜 로또될각!"
           containerStyle={s.header}
           right={(
             <View style={s.headerActions}>
@@ -118,7 +118,7 @@ const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.bg },
   content: { paddingBottom: 8 },
   header: { alignItems: 'flex-end' },
-  logo: { fontSize: 26, fontWeight: '800', color: C.logo, letterSpacing: 4 },
+  logo: { fontFamily: 'Jua', fontSize: 30, fontWeight: '400', color: C.logo, letterSpacing: 0 },
   infoBackdrop: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 2,
@@ -132,7 +132,7 @@ const s = StyleSheet.create({
   },
   infoButton: {
     position: 'absolute',
-    top: 0,
+    top: -10,
     right: 5,
     width: 18,
     height: 18,

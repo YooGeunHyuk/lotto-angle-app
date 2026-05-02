@@ -20,6 +20,17 @@ export interface GeneratedSets {
   sumRange: { min: number; max: number };
 }
 
+const SCORE_WEIGHTS = {
+  frequency: 0.18,
+  recentFrequency: 0.42,
+  gap: 0.05,
+  pairAffinity: 0.22,
+  season: 0.13,
+};
+
+const MAX_SET_OVERLAP = 1;
+const MAX_NUMBER_REUSE = 2;
+
 function computeScores(draws: Draw[]): { scoreMap: Record<number, number>; sumMin: number; sumMax: number; reasons: string[] } {
   const total = draws.length;
   const nextDrwNo = draws[draws.length - 1].drwNo + 1;
@@ -81,11 +92,11 @@ function computeScores(draws: Draw[]): { scoreMap: Record<number, number>; sumMi
   const scoreMap: Record<number, number> = {};
   for (let n = 1; n <= 45; n++) {
     scoreMap[n] =
-      (nFreq[n] || 0) * 0.15 +
-      (nRecent[n] || 0) * 0.25 +
-      (nGap[n] || 0) * 0.20 +
-      (nPair[n] || 0) * 0.20 +
-      (nSeason[n] || 0) * 0.20;
+      (nFreq[n] || 0) * SCORE_WEIGHTS.frequency +
+      (nRecent[n] || 0) * SCORE_WEIGHTS.recentFrequency +
+      (nGap[n] || 0) * SCORE_WEIGHTS.gap +
+      (nPair[n] || 0) * SCORE_WEIGHTS.pairAffinity +
+      (nSeason[n] || 0) * SCORE_WEIGHTS.season;
   }
 
   const sums = draws.map(d => d.numbers.reduce((a, b) => a + b, 0)).sort((a, b) => a - b);
@@ -98,40 +109,92 @@ function computeScores(draws: Draw[]): { scoreMap: Record<number, number>; sumMi
   const seasonNames: Record<string, string> = { spring: '봄', summer: '여름', fall: '가을', winter: '겨울' };
 
   const reasons = [
-    `미출현 기간 가중 (상위: ${topByGap.join(', ')})`,
-    `최근 50회 핫 번호 반영 (${topByRecent.join(', ')})`,
-    `${seasonNames[currentSeason]}철 강세 번호 반영`,
-    `조합 친밀도 + 전체 빈도 종합`,
-    `합계 범위 ${sumMin}~${sumMax} 내 최적화`,
+    `최근 50회 출현 흐름 우선 반영 (${topByRecent.join(', ')})`,
+    `전체 빈도 + 조합 친밀도 보조 반영`,
+    `${seasonNames[currentSeason]}철 번호 흐름은 보조 지표로 반영`,
+    `장기 미출현 번호는 낮은 비중으로 참고 (${topByGap.join(', ')})`,
+    `세트 간 중복을 줄이고 합계 ${sumMin}~${sumMax} 내 최적화`,
   ];
 
   return { scoreMap, sumMin, sumMax, reasons };
 }
 
-function pickOne(pool: number[], scoreMap: Record<number, number>, sumMin: number, sumMax: number, excludeSets: number[][]): number[] {
-  const excludeAll = new Set(excludeSets.flat());
-  const freshPool = [...new Set(pool.filter(n => !excludeAll.has(n)))];
-  const usePool = freshPool.length >= 8 ? freshPool : [...new Set(pool)];
+function bandOf(n: number): number {
+  if (n <= 9) return 0;
+  if (n <= 19) return 1;
+  if (n <= 29) return 2;
+  if (n <= 39) return 3;
+  return 4;
+}
+
+function diversityScore(numbers: number[]): number {
+  const bands = new Set(numbers.map(bandOf));
+  const oddCount = numbers.filter(n => n % 2 !== 0).length;
+  const oddEvenBalance = oddCount >= 2 && oddCount <= 4 ? 0.35 : -0.25;
+  return bands.size * 0.28 + oddEvenBalance;
+}
+
+function scoreSet(numbers: number[], scoreMap: Record<number, number>, previousSets: number[][]): number {
+  const baseScore = numbers.reduce((a, n) => a + (scoreMap[n] || 0), 0);
+  const similarityPenalty = previousSets.reduce((penalty, prev) => {
+    const overlap = numbers.filter(n => prev.includes(n)).length;
+    return penalty + overlap * 0.18 + Math.max(0, overlap - MAX_SET_OVERLAP) * 0.6;
+  }, 0);
+  const reusePenalty = numbers.reduce((penalty, n) => {
+    const usedCount = previousSets.filter(prev => prev.includes(n)).length;
+    return penalty + usedCount * 0.12;
+  }, 0);
+  return baseScore + diversityScore(numbers) - similarityPenalty - reusePenalty;
+}
+
+function isSameSet(a: number[], b: number[]): boolean {
+  return a.length === b.length && a.every((n, i) => n === b[i]);
+}
+
+function isDiverseEnough(numbers: number[], previousSets: number[][], maxOverlap: number, maxReuse: number): boolean {
+  const usedCounts = new Map<number, number>();
+  previousSets.flat().forEach(n => usedCounts.set(n, (usedCounts.get(n) || 0) + 1));
+
+  if (numbers.some(n => (usedCounts.get(n) || 0) >= maxReuse)) {
+    return false;
+  }
+
+  return previousSets.every(prev => numbers.filter(n => prev.includes(n)).length <= maxOverlap);
+}
+
+function pickOne(pool: number[], scoreMap: Record<number, number>, sumMin: number, sumMax: number, previousSets: number[][]): number[] {
+  const usePool = [...new Set(pool)];
 
   let best: number[] = usePool.slice(0, 6);
   let bestScore = -1;
 
-  for (let i = 0; i < 800; i++) {
-    // Fisher-Yates로 중복 없이 6개 선택
-    const arr = [...usePool];
-    for (let j = arr.length - 1; j >= arr.length - 6 && j > 0; j--) {
-      const k = Math.floor(Math.random() * (j + 1));
-      [arr[j], arr[k]] = [arr[k], arr[j]];
-    }
-    const picked = arr.slice(arr.length - 6);
-    if (new Set(picked).size !== 6) continue;
+  const search = (maxOverlap: number, maxReuse: number, iterations: number) => {
+    for (let i = 0; i < iterations; i++) {
+      // 전체 1~45 후보를 유지한 뒤, 당첨 DB 기반 점수로 가장 좋은 조합을 고릅니다.
+      // 특정 번호대(예: 41~45)를 강제로 넣지 않습니다.
+      const arr = [...usePool];
+      for (let j = arr.length - 1; j >= arr.length - 6 && j > 0; j--) {
+        const k = Math.floor(Math.random() * (j + 1));
+        [arr[j], arr[k]] = [arr[k], arr[j]];
+      }
+      const picked = arr.slice(arr.length - 6).sort((a, b) => a - b);
+      if (new Set(picked).size !== 6) continue;
+      if (previousSets.some(prev => isSameSet(picked, prev))) continue;
+      if (!isDiverseEnough(picked, previousSets, maxOverlap, maxReuse)) continue;
 
-    const sum = picked.reduce((a, b) => a + b, 0);
-    if (sum >= sumMin && sum <= sumMax) {
-      const sc = picked.reduce((a, n) => a + (scoreMap[n] || 0), 0);
-      if (sc > bestScore) { bestScore = sc; best = picked; }
+      const sum = picked.reduce((a, b) => a + b, 0);
+      if (sum >= sumMin && sum <= sumMax) {
+        const sc = scoreSet(picked, scoreMap, previousSets);
+        if (sc > bestScore) { bestScore = sc; best = picked; }
+      }
     }
+  };
+
+  search(MAX_SET_OVERLAP, MAX_NUMBER_REUSE, 1400);
+  if (bestScore < 0) {
+    search(2, 3, 600);
   }
+
   return best.sort((a, b) => a - b);
 }
 
@@ -140,10 +203,9 @@ export function generateFiveSets(draws: Draw[]): GeneratedSets {
 
   const { scoreMap, sumMin, sumMax, reasons } = computeScores(draws);
 
-  // 상위 25개 후보 풀
+  // 전체 번호를 후보로 유지해야 41~45가 점수 순위에서 밀려도 추천에서 배제되지 않습니다.
   const pool = Object.entries(scoreMap)
     .sort((a, b) => +b[1] - +a[1])
-    .slice(0, 25)
     .map(e => +e[0]);
 
   const sets: PredictionSet[] = [];
@@ -168,7 +230,6 @@ export function generateFixedSets(draws: Draw[], fixed: number[], count: number 
   const pool = Object.entries(scoreMap)
     .filter(([n]) => !fixedUniq.includes(+n))
     .sort((a, b) => +b[1] - +a[1])
-    .slice(0, 25)
     .map(e => +e[0]);
 
   const fixedSum = fixedUniq.reduce((a, b) => a + b, 0);
@@ -209,7 +270,7 @@ function pickN(pool: number[], scoreMap: Record<number, number>, sumMin: number,
     if (new Set(picked).size !== need) continue;
     const sum = picked.reduce((a, b) => a + b, 0);
     if (sum >= sumMin && sum <= sumMax) {
-      const sc = picked.reduce((a, n) => a + (scoreMap[n] || 0), 0);
+      const sc = picked.reduce((a, n) => a + (scoreMap[n] || 0), 0) + diversityScore(picked);
       if (sc > bestScore) { bestScore = sc; best = picked; }
     }
   }

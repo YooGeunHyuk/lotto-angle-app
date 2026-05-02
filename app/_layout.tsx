@@ -1,4 +1,5 @@
 import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
@@ -8,6 +9,14 @@ export const unstable_settings = {
 };
 
 export default function RootLayout() {
+  const [loaded] = useFonts({
+    Jua: require('../assets/fonts/Jua-Regular.ttf'),
+  });
+
+  if (!loaded) {
+    return null;
+  }
+
   return (
     <ThemeProvider value={DefaultTheme}>
       <Stack
