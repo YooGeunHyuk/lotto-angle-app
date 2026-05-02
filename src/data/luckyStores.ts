@@ -25,12 +25,13 @@ export interface LuckyStorePayload {
   latestRound: number;
   startRound: number;
   roundsIncluded: number;
-  maxStores: number;
+  maxStores?: number;
   periodLabel: string;
   stores: LuckyStore[];
 }
 
 export type StoreRankFilter = 'all' | 'first' | 'second';
+export type LuckyStoreMode = 'nearby' | 'first' | 'second' | 'national';
 
 export interface StoreLocation {
   lat: number;
@@ -47,6 +48,13 @@ export const luckyStores = luckyStorePayload.stores;
 export function filterLuckyStores(filter: StoreRankFilter): LuckyStore[] {
   if (filter === 'first') return luckyStores.filter(store => store.firstWins > 0);
   if (filter === 'second') return luckyStores.filter(store => store.secondWins > 0);
+  return luckyStores;
+}
+
+export function storesForLuckyMode(mode: LuckyStoreMode, location?: StoreLocation | null): LuckyStore[] | LuckyStoreWithDistance[] {
+  if (mode === 'nearby') return location ? nearbyLuckyStores(location, 'all') : [];
+  if (mode === 'first') return filterLuckyStores('first');
+  if (mode === 'second') return filterLuckyStores('second');
   return luckyStores;
 }
 

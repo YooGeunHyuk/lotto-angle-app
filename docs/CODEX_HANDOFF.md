@@ -111,22 +111,27 @@ Current implementation:
 - `명당` tab is wired into `app/(tabs)/index.tsx` after `내 번호` and before `통계`.
 - Native app uses `react-native-maps` and markers.
 - Web preview uses a list fallback with external Naver Map links.
-- The map has two top-level modes:
-  - `내 위치`: default mode; uses `expo-location` permission and ranks nearby stores by win score.
-  - `전국`: national TOP ranking.
+- The lucky-store screen has four top-level modes:
+  - `내 주변`: default mode; uses `expo-location` permission and ranks nearby winning stores by win score.
+  - `1등`: lists first-prize winning stores and shows them on the map.
+  - `2등`: lists second-prize winning stores and shows them on the map.
+  - `전국`: list-only national ranking; `위치 보기` switches the selected store into map mode.
 - Data comes from Donghaeng Lottery's winning-store API and is bundled in `data/lucky_stores.json`.
 - Current bundled dataset:
   - Lotto 6/45
   - Offline stores only
   - Recent 260 rounds
   - 963~1222
-  - Top 180 stores by weighted score
+  - 7,003 unique offline winning stores
+  - 2,239 stores with first-prize history
+  - 6,674 stores with second-prize history
 
 Production note:
 
 - Expo Go should work for map testing.
 - Location permission copy is configured in `app.json`.
 - Android standalone/production map builds may need Google Maps API key configuration before release.
+- Native Naver/Kakao maps will require map platform keys plus an EAS development/production build; Expo Go cannot load those custom native SDK modules.
 
 Reference screen idea from user:
 

@@ -3,7 +3,6 @@ const path = require('path');
 
 const OUTPUT_PATH = path.join(__dirname, '../data/lucky_stores.json');
 const LATEST_ROUNDS_TO_SCAN = 260;
-const MAX_STORES = 180;
 const DELAY_MS = 80;
 
 const BASE_URL = 'https://www.dhlottery.co.kr';
@@ -125,8 +124,7 @@ async function main() {
       totalWins: store.firstWins + store.secondWins,
       score: store.firstWins * 4 + store.secondWins,
     }))
-    .sort((a, b) => b.score - a.score || b.totalWins - a.totalWins || b.lastRound - a.lastRound)
-    .slice(0, MAX_STORES);
+    .sort((a, b) => b.score - a.score || b.totalWins - a.totalWins || b.lastRound - a.lastRound);
 
   const payload = {
     source: 'https://www.dhlottery.co.kr/wnprchsplcsrch/home',
@@ -134,7 +132,6 @@ async function main() {
     latestRound,
     startRound,
     roundsIncluded: latestRound - startRound + 1,
-    maxStores: MAX_STORES,
     periodLabel: `최근 ${latestRound - startRound + 1}회`,
     stores,
   };

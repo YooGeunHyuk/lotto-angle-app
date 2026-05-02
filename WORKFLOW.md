@@ -67,7 +67,8 @@ Current branch for continued work: `continue-lotto-features`
 - Lucky-store map/list files: `src/screens/LuckyMapContent.native.tsx`, `src/screens/LuckyMapContent.tsx`
 - Lucky-store data files: `data/lucky_stores.json`, `src/data/luckyStores.ts`
 - Lucky-store fetch script: `scripts/fetchLuckyStores.js`
-- Lucky-store map now has two modes: `내 위치` (default, permission-based nearby ranking) and `전국` (national TOP ranking).
+- Lucky-store screen now has four modes: `내 주변` (permission-based nearby winning-store ranking), `1등`, `2등`, and `전국`.
+- `전국` is list-only; each row has `위치 보기`, which opens that store on the in-app map mode.
 - Location dependency: `expo-location`; permission copy is configured in `app.json`.
 - Main tab wiring: `app/(tabs)/index.tsx`
 - Do not finalize Korean lotto QR parser until the user provides at least one real lottery QR URL/text sample.
