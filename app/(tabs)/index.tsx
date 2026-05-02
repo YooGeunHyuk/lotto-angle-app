@@ -2,6 +2,7 @@ import { allDraws, Draw, getRemoteDraws } from '@/src/data/lottoData';
 import { getUserDraws } from '@/src/data/drawStore';
 import FixedPickContent from '@/src/screens/FixedPickContent';
 import HomeContent from '@/src/screens/HomeContent';
+import LuckyMapContent from '@/src/screens/LuckyMapContent';
 import MyTicketsContent from '@/src/screens/MyTicketsContent';
 import StatsContent from '@/src/screens/StatsContent';
 import SumGeneratorContent from '@/src/screens/SumGeneratorContent';
@@ -17,6 +18,7 @@ const TABS = [
   { label: '고정추천', icon: 'pin' },
   { label: '합계생성', icon: 'options' },
   { label: '내 번호', icon: 'ticket' },
+  { label: '명당', icon: 'map' },
   { label: '통계', icon: 'bar-chart' }
 ];
 
@@ -69,6 +71,7 @@ export default function App() {
             <SumGeneratorContent setParentScrollEnabled={setScrollEnabled} />
           </View>
           <View style={{ width }}><MyTicketsContent draws={draws} /></View>
+          <View style={{ width }}><LuckyMapContent /></View>
           <View style={{ width }}><StatsContent draws={draws} /></View>
         </ScrollView>
 

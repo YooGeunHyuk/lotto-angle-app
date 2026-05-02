@@ -60,10 +60,13 @@ Current branch for continued work: `continue-lotto-features`
 ## Current Working State
 
 - Local branch: `continue-lotto-features`
-- Current focus: next-version ticket checking flow.
+- Current focus: next-version ticket checking flow and lucky-store map.
 - Implemented first: `내 번호` tab, manual ticket registration for A-E games, ticket storage, pending/settled result matching.
 - Ticket storage/model file: `src/data/ticketStore.ts`
 - Ticket UI file: `src/screens/MyTicketsContent.tsx`
+- Lucky-store map/list files: `src/screens/LuckyMapContent.native.tsx`, `src/screens/LuckyMapContent.tsx`
+- Lucky-store data files: `data/lucky_stores.json`, `src/data/luckyStores.ts`
+- Lucky-store fetch script: `scripts/fetchLuckyStores.js`
 - Main tab wiring: `app/(tabs)/index.tsx`
 - Do not finalize Korean lotto QR parser until the user provides at least one real lottery QR URL/text sample.
 - Unrelated files to avoid mixing into lotto checkpoints unless explicitly requested: `docs/golf-demo.html` and `docs/assets/golf-*`.
@@ -82,13 +85,12 @@ Current branch for continued work: `continue-lotto-features`
 
 ## Next Version Goals
 
-1. Replace app icon with the more direct LOTTO-style icon.
+1. Finish manual QA for saved tickets and lucky-store map.
 2. Add QR lottery ticket scanner/checker.
-3. Store purchased tickets by round.
-4. Support both QR registration and manual registration.
-5. Show tickets as pending before draw results are available.
-6. After draw results are available, highlight matched numbers and show rank.
-7. Automate winning-number updates so the user does not manually edit the Gist every week.
+3. Add ticket edit support if needed after QA.
+4. Automate winning-number updates so the user does not manually edit the Gist every week.
+5. Automate lucky-store data updates.
+6. Prepare production map API configuration for Android builds.
 
 ## QR Ticket Feature Plan
 

@@ -26,10 +26,10 @@ Recommended next-thread prompt:
 
 The next version should add these in order:
 
-1. Saved purchased numbers
-2. Purchased-number vs winning-number comparison UI
-3. QR scan for lottery tickets after a real QR sample is available
-4. Automatic winning-number updates via GitHub Actions
+1. Manual QA for saved purchased numbers and lucky-store map
+2. QR scan for lottery tickets after a real QR sample is available
+3. Automatic winning-number updates via GitHub Actions
+4. Automatic lucky-store data updates
 5. App icon/store refresh follow-up as needed
 
 The user explicitly asked to proceed in sequence without asking unnecessary questions.
@@ -55,6 +55,12 @@ The user explicitly asked to proceed in sequence without asking unnecessary ques
   - `/Users/straynurbs/dev/LottoAnalyzer-copy/src/data/ticketStore.ts`
 - Saved purchased ticket UI:
   - `/Users/straynurbs/dev/LottoAnalyzer-copy/src/screens/MyTicketsContent.tsx`
+- Lucky-store map/list UI:
+  - `/Users/straynurbs/dev/LottoAnalyzer-copy/src/screens/LuckyMapContent.native.tsx`
+  - `/Users/straynurbs/dev/LottoAnalyzer-copy/src/screens/LuckyMapContent.tsx`
+- Lucky-store data:
+  - `/Users/straynurbs/dev/LottoAnalyzer-copy/data/lucky_stores.json`
+  - `/Users/straynurbs/dev/LottoAnalyzer-copy/scripts/fetchLuckyStores.js`
 
 ## Remote Draw Data Strategy
 
@@ -97,6 +103,26 @@ Current implementation:
   - no draw result => `추첨전`
   - draw exists => rank/match result shown
 - QR button is intentionally a placeholder until the user provides a real Korean lotto QR URL/text sample.
+
+## Lucky Store Map
+
+Current implementation:
+
+- `명당` tab is wired into `app/(tabs)/index.tsx` after `내 번호` and before `통계`.
+- Native app uses `react-native-maps` and markers.
+- Web preview uses a list fallback with external Naver Map links.
+- Data comes from Donghaeng Lottery's winning-store API and is bundled in `data/lucky_stores.json`.
+- Current bundled dataset:
+  - Lotto 6/45
+  - Offline stores only
+  - Recent 260 rounds
+  - 963~1222
+  - Top 180 stores by weighted score
+
+Production note:
+
+- Expo Go should work for map testing.
+- Android standalone/production map builds may need Google Maps API key configuration before release.
 
 Reference screen idea from user:
 
