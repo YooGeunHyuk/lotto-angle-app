@@ -67,6 +67,8 @@ Current branch for continued work: `continue-lotto-features`
 - Lucky-store map/list files: `src/screens/LuckyMapContent.native.tsx`, `src/screens/LuckyMapContent.tsx`
 - Lucky-store data files: `data/lucky_stores.json`, `src/data/luckyStores.ts`
 - Lucky-store fetch script: `scripts/fetchLuckyStores.js`
+- Lucky-store map now has two modes: `내 위치` (default, permission-based nearby ranking) and `전국` (national TOP ranking).
+- Location dependency: `expo-location`; permission copy is configured in `app.json`.
 - Main tab wiring: `app/(tabs)/index.tsx`
 - Do not finalize Korean lotto QR parser until the user provides at least one real lottery QR URL/text sample.
 - Unrelated files to avoid mixing into lotto checkpoints unless explicitly requested: `docs/golf-demo.html` and `docs/assets/golf-*`.
@@ -198,7 +200,7 @@ node scripts/fetchLottoData.js
 
 For the next coding session:
 
-1. Manually run the app and inspect `내 번호` on a device/simulator for layout and storage behavior.
+1. Manually run the app and inspect `내 번호` and `명당` on a device/simulator for layout, storage, map, and location-permission behavior.
 2. Add ticket edit support if needed after manual QA.
 3. Add QR scan screen after confirming real QR payload format.
 4. Add camera permission copy to `app.json` before shipping QR scanner:

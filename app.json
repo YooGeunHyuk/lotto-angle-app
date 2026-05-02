@@ -13,7 +13,8 @@
       "bundleIdentifier": "com.meetyuuu.lottoanalyzer",
       "infoPlist": {
         "UIViewControllerBasedStatusBarAppearance": false,
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "내 주변 로또 명당을 보여주기 위해 현재 위치를 사용합니다."
       }
     },
     "android": {
@@ -51,6 +52,12 @@
         {
           "androidAppId": "ca-app-pub-5697680589501542~1429646675",
           "iosAppId": "ca-app-pub-5697680589501542~7803483333"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "내 주변 로또 명당을 보여주기 위해 현재 위치를 사용합니다."
         }
       ]
     ],

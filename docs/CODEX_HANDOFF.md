@@ -111,6 +111,9 @@ Current implementation:
 - `명당` tab is wired into `app/(tabs)/index.tsx` after `내 번호` and before `통계`.
 - Native app uses `react-native-maps` and markers.
 - Web preview uses a list fallback with external Naver Map links.
+- The map has two top-level modes:
+  - `내 위치`: default mode; uses `expo-location` permission and ranks nearby stores by win score.
+  - `전국`: national TOP ranking.
 - Data comes from Donghaeng Lottery's winning-store API and is bundled in `data/lucky_stores.json`.
 - Current bundled dataset:
   - Lotto 6/45
@@ -122,6 +125,7 @@ Current implementation:
 Production note:
 
 - Expo Go should work for map testing.
+- Location permission copy is configured in `app.json`.
 - Android standalone/production map builds may need Google Maps API key configuration before release.
 
 Reference screen idea from user:

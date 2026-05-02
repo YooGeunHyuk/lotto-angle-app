@@ -32,6 +32,15 @@ export interface LuckyStorePayload {
 
 export type StoreRankFilter = 'all' | 'first' | 'second';
 
+export interface StoreLocation {
+  lat: number;
+  lng: number;
+}
+
+export interface LuckyStoreWithDistance extends LuckyStore {
+  distanceKm: number;
+}
+
 export const luckyStorePayload = rawData as LuckyStorePayload;
 export const luckyStores = luckyStorePayload.stores;
 
@@ -39,6 +48,31 @@ export function filterLuckyStores(filter: StoreRankFilter): LuckyStore[] {
   if (filter === 'first') return luckyStores.filter(store => store.firstWins > 0);
   if (filter === 'second') return luckyStores.filter(store => store.secondWins > 0);
   return luckyStores;
+}
+
+export function distanceKm(from: StoreLocation, to: StoreLocation): number {
+  const earthRadiusKm = 6371;
+  const dLat = (to.lat - from.lat) * Math.PI / 180;
+  const dLng = (to.lng - from.lng) * Math.PI / 180;
+  const lat1 = from.lat * Math.PI / 180;
+  const lat2 = to.lat * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+export function nearbyLuckyStores(location: StoreLocation, filter: StoreRankFilter, radiusKm = 35): LuckyStoreWithDistance[] {
+  const stores = filterLuckyStores(filter)
+    .map(store => ({
+      ...store,
+      distanceKm: distanceKm(location, { lat: store.lat, lng: store.lng }),
+    }));
+
+  const nearby = stores.filter(store => store.distanceKm <= radiusKm);
+  const useStores = nearby.length >= 8 ? nearby : stores.sort((a, b) => a.distanceKm - b.distanceKm).slice(0, 40);
+
+  return useStores.sort((a, b) => b.score - a.score || b.totalWins - a.totalWins || a.distanceKm - b.distanceKm);
 }
 
 export function storeSummary(store: LuckyStore): string {

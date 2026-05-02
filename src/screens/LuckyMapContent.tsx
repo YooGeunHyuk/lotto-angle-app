@@ -7,6 +7,11 @@ import ScreenHeader from '../components/ScreenHeader';
 import { filterLuckyStores, LuckyStore, luckyStorePayload, StoreRankFilter, storeSummary } from '../data/luckyStores';
 
 const C = { bg: '#FFFFFF', card: '#F7F7F7', border: '#EEEEEE', black: '#1A1A1A', gray: '#999999', dim: '#CCCCCC', accent: '#D94F2A' };
+type ViewMode = 'nearby' | 'national';
+const MODES: { label: string; value: ViewMode }[] = [
+  { label: '내 위치', value: 'nearby' },
+  { label: '전국', value: 'national' },
+];
 const FILTERS: { label: string; value: StoreRankFilter }[] = [
   { label: '전체', value: 'all' },
   { label: '1등', value: 'first' },
@@ -41,13 +46,23 @@ function StoreCard({ store }: { store: LuckyStore }) {
 }
 
 export default function LuckyMapContent() {
+  const [mode, setMode] = useState<ViewMode>('nearby');
   const [filter, setFilter] = useState<StoreRankFilter>('all');
   const stores = useMemo(() => filterLuckyStores(filter), [filter]);
+  const listTitle = mode === 'nearby' ? '전국 명당' : '전국 명당';
 
   return (
     <View style={s.safe}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
         <ScreenHeader title="명당지도" subtitle={`${luckyStorePayload.periodLabel} · ${luckyStorePayload.startRound}~${luckyStorePayload.latestRound}회`} right={<HeaderInfo />} />
+
+        <View style={s.modeRow}>
+          {MODES.map(item => (
+            <TouchableOpacity key={item.value} style={[s.modeBtn, mode === item.value && s.modeBtnActive]} onPress={() => setMode(item.value)}>
+              <Text style={[s.modeText, mode === item.value && s.modeTextActive]}>{item.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
         <View style={s.filterRow}>
           {FILTERS.map(item => (
@@ -59,13 +74,13 @@ export default function LuckyMapContent() {
 
         <View style={s.webMapNotice}>
           <Ionicons name="map-outline" size={28} color={C.dim} />
-          <Text style={s.noticeTitle}>앱에서는 지도로 표시됩니다</Text>
+          <Text style={s.noticeTitle}>{mode === 'nearby' ? '앱에서는 내 위치 기준으로 표시됩니다' : '앱에서는 전국 지도로 표시됩니다'}</Text>
           <Text style={s.noticeText}>웹 미리보기에서는 명당 리스트와 외부 지도 링크로 확인할 수 있습니다.</Text>
         </View>
 
         <View style={s.card}>
           <View style={s.cardHead}>
-            <Text style={s.sectionTitle}>명당 TOP {Math.min(stores.length, 40)}</Text>
+            <Text style={s.sectionTitle}>{listTitle} TOP {Math.min(stores.length, 40)}</Text>
             <Text style={s.dim}>{stores.length}곳</Text>
           </View>
           {stores.slice(0, 40).map(store => <StoreCard key={store.id} store={store} />)}
@@ -81,7 +96,12 @@ export default function LuckyMapContent() {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.bg },
   content: { paddingBottom: 8 },
-  filterRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginTop: 10 },
+  modeRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginTop: 10 },
+  modeBtn: { flex: 1, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
+  modeBtnActive: { backgroundColor: C.black, borderColor: C.black },
+  modeText: { fontSize: 13, fontWeight: '800', color: C.gray },
+  modeTextActive: { color: '#FFFFFF' },
+  filterRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginTop: 8 },
   filterBtn: { flex: 1, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, borderRadius: 12, paddingVertical: 10, alignItems: 'center' },
   filterBtnActive: { backgroundColor: C.black, borderColor: C.black },
   filterText: { fontSize: 12, fontWeight: '700', color: C.gray },
