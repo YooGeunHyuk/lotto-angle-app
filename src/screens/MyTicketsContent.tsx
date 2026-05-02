@@ -20,6 +20,9 @@ const C = {
   pending: '#B98000',
 };
 
+const GAME_LABELS = ['A', 'B', 'C', 'D', 'E'];
+const EMPTY_GAMES = GAME_LABELS.map(() => ['', '', '', '', '', '']);
+
 function getStatusLabel(ticket: EvaluatedTicket): string {
   if (ticket.status === 'pending') return '추첨전';
   return ticket.games.some(game => game.rank !== '낙첨') ? '당첨 확인' : '낙첨';
@@ -34,7 +37,7 @@ export default function MyTicketsContent({ draws }: { draws: Draw[] }) {
   const latest = draws[draws.length - 1];
   const [tickets, setTickets] = useState<SavedTicket[]>([]);
   const [drawNo, setDrawNo] = useState(String(latest ? latest.drwNo + 1 : 1));
-  const [nums, setNums] = useState(['', '', '', '', '', '']);
+  const [games, setGames] = useState<string[][]>(() => EMPTY_GAMES.map(game => [...game]));
   const refs = useRef<(TextInput | null)[]>([]);
 
   const evaluatedTickets = useMemo(
@@ -51,27 +54,41 @@ export default function MyTicketsContent({ draws }: { draws: Draw[] }) {
     loadTickets();
   }, [loadTickets]);
 
-  function updateNum(index: number, value: string) {
-    const next = [...nums];
-    next[index] = value.replace(/[^0-9]/g, '');
-    setNums(next);
-    if (next[index].length >= 2 && index < 5) refs.current[index + 1]?.focus();
+  function updateNum(gameIndex: number, numberIndex: number, value: string) {
+    const next = games.map(game => [...game]);
+    next[gameIndex][numberIndex] = value.replace(/[^0-9]/g, '');
+    setGames(next);
+    const flatIndex = gameIndex * 6 + numberIndex;
+    if (next[gameIndex][numberIndex].length >= 2 && flatIndex < GAME_LABELS.length * 6 - 1) {
+      refs.current[flatIndex + 1]?.focus();
+    }
   }
 
   function resetForm() {
-    setNums(['', '', '', '', '', '']);
+    setGames(EMPTY_GAMES.map(game => [...game]));
     setDrawNo(String(latest ? latest.drwNo + 1 : 1));
   }
 
   async function handleSave() {
     const targetDrawNo = parseInt(drawNo, 10);
-    const numbers = nums.map(value => parseInt(value, 10));
 
     if (!Number.isInteger(targetDrawNo) || targetDrawNo < 1) return Alert.alert('오류', '회차를 입력하세요');
-    if (numbers.some(n => !Number.isInteger(n) || n < 1 || n > 45)) return Alert.alert('오류', '번호는 1~45 사이로 입력하세요');
-    if (new Set(numbers).size !== 6) return Alert.alert('오류', '6개 번호가 모두 달라야 합니다');
 
-    const ticket = buildTicket(targetDrawNo, [numbers]);
+    const parsedGames: number[][] = [];
+    for (let i = 0; i < games.length; i++) {
+      const filled = games[i].filter(Boolean).length;
+      if (filled === 0) continue;
+      if (filled < 6) return Alert.alert('오류', `${GAME_LABELS[i]} 게임의 번호 6개를 모두 입력하세요`);
+
+      const numbers = games[i].map(value => parseInt(value, 10));
+      if (numbers.some(n => !Number.isInteger(n) || n < 1 || n > 45)) return Alert.alert('오류', '번호는 1~45 사이로 입력하세요');
+      if (new Set(numbers).size !== 6) return Alert.alert('오류', `${GAME_LABELS[i]} 게임에 중복 번호가 있습니다`);
+      parsedGames.push(numbers);
+    }
+
+    if (parsedGames.length === 0) return Alert.alert('오류', '저장할 번호를 입력하세요');
+
+    const ticket = buildTicket(targetDrawNo, parsedGames);
     if (ticket.games.length === 0) return Alert.alert('오류', '번호를 다시 확인하세요');
 
     await saveTicket(ticket);
@@ -112,22 +129,30 @@ export default function MyTicketsContent({ draws }: { draws: Draw[] }) {
             placeholderTextColor={C.gray}
           />
 
-          <Text style={s.label}>구매 번호 6개</Text>
-          <View style={s.numRow}>
-            {nums.map((value, index) => (
-              <TextInput
-                key={index}
-                ref={(element) => { refs.current[index] = element; }}
-                style={s.numInput}
-                value={value}
-                onChangeText={text => updateNum(index, text)}
-                keyboardType="number-pad"
-                maxLength={2}
-                placeholder={`${index + 1}`}
-                placeholderTextColor={C.gray}
-              />
-            ))}
-          </View>
+          <Text style={s.label}>구매 번호</Text>
+          {games.map((game, gameIndex) => (
+            <View key={GAME_LABELS[gameIndex]} style={s.manualGameRow}>
+              <Text style={s.manualGameLabel}>{GAME_LABELS[gameIndex]}</Text>
+              <View style={s.numRow}>
+                {game.map((value, numberIndex) => {
+                  const flatIndex = gameIndex * 6 + numberIndex;
+                  return (
+                    <TextInput
+                      key={numberIndex}
+                      ref={(element) => { refs.current[flatIndex] = element; }}
+                      style={s.numInput}
+                      value={value}
+                      onChangeText={text => updateNum(gameIndex, numberIndex, text)}
+                      keyboardType="number-pad"
+                      maxLength={2}
+                      placeholder={`${numberIndex + 1}`}
+                      placeholderTextColor={C.gray}
+                    />
+                  );
+                })}
+              </View>
+            </View>
+          ))}
 
           <View style={s.btnRow}>
             <TouchableOpacity style={[s.btn, s.btnSecondary]} onPress={resetForm}>
@@ -212,7 +237,9 @@ const s = StyleSheet.create({
   cardTitle: { fontSize: 13, fontWeight: '700', color: C.black },
   label: { fontSize: 11, color: C.gray, marginTop: 8, marginBottom: 6 },
   drawInput: { width: 90, backgroundColor: '#FFFFFF', borderRadius: 10, padding: 10, color: C.black, fontSize: 14, textAlign: 'center', borderWidth: 1, borderColor: C.border },
-  numRow: { flexDirection: 'row', gap: 6, marginBottom: 4 },
+  manualGameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 7 },
+  manualGameLabel: { width: 14, fontSize: 11, fontWeight: '700', color: C.dim, textAlign: 'center' },
+  numRow: { flex: 1, flexDirection: 'row', gap: 5 },
   numInput: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 10, padding: 10, color: C.black, fontSize: 14, textAlign: 'center', borderWidth: 1, borderColor: C.border },
   btnRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
   btn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center' },

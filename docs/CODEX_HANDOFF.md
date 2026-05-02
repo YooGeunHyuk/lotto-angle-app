@@ -91,7 +91,7 @@ Wanted behavior:
 Current implementation:
 
 - `내 번호` tab is wired into `app/(tabs)/index.tsx`.
-- Manual one-line ticket registration is implemented.
+- Manual A-E multi-game ticket registration is implemented.
 - Saved tickets are stored in AsyncStorage.
 - Result matching derives status from current draw history:
   - no draw result => `추첨전`

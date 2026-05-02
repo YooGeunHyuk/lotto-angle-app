@@ -61,7 +61,7 @@ Current branch for continued work: `continue-lotto-features`
 
 - Local branch: `continue-lotto-features`
 - Current focus: next-version ticket checking flow.
-- Implemented first: `내 번호` tab, manual ticket registration, ticket storage, pending/settled result matching.
+- Implemented first: `내 번호` tab, manual ticket registration for A-E games, ticket storage, pending/settled result matching.
 - Ticket storage/model file: `src/data/ticketStore.ts`
 - Ticket UI file: `src/screens/MyTicketsContent.tsx`
 - Main tab wiring: `app/(tabs)/index.tsx`
@@ -196,8 +196,8 @@ node scripts/fetchLottoData.js
 
 For the next coding session:
 
-1. Finish and verify `내 번호` manual ticket flow.
-2. Manually run the app and inspect `내 번호` on a device/simulator for layout and storage behavior.
+1. Manually run the app and inspect `내 번호` on a device/simulator for layout and storage behavior.
+2. Add ticket edit support if needed after manual QA.
 3. Add QR scan screen after confirming real QR payload format.
 4. Add camera permission copy to `app.json` before shipping QR scanner:
    - iOS `NSCameraUsageDescription`: `로또 QR코드를 스캔해 구매 번호를 등록하기 위해 카메라를 사용합니다.`
