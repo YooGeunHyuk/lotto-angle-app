@@ -1,6 +1,6 @@
+import Constants from 'expo-constants';
 import React from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
-import { BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads';
 
 const C = { card: '#F9F9F9', border: '#E5E5E5' };
 const IOS_BANNER_ID = 'ca-app-pub-5697680589501542/9546128236';
@@ -12,6 +12,12 @@ export default function AdBanner() {
     return null;
   }
 
+  if (Constants.appOwnership === 'expo') {
+    return null;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { BannerAd, BannerAdSize, TestIds } = require('react-native-google-mobile-ads');
   const unitId = __DEV__
     ? TestIds.BANNER
     : Platform.OS === 'ios'
