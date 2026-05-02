@@ -14,9 +14,9 @@ const { width } = Dimensions.get('window');
 
 const TABS = [
   { label: '번호추천', icon: 'sparkles' },
-  { label: '내 번호', icon: 'ticket' },
   { label: '고정추천', icon: 'pin' },
   { label: '합계생성', icon: 'options' },
+  { label: '내 번호', icon: 'ticket' },
   { label: '통계', icon: 'bar-chart' }
 ];
 
@@ -64,11 +64,11 @@ export default function App() {
           onMomentumScrollEnd={e => setPage(Math.round(e.nativeEvent.contentOffset.x / width))}
         >
           <View style={{ width }}><HomeContent draws={draws} /></View>
-          <View style={{ width }}><MyTicketsContent draws={draws} /></View>
           <View style={{ width }}><FixedPickContent draws={draws} /></View>
           <View style={{ width }}>
             <SumGeneratorContent setParentScrollEnabled={setScrollEnabled} />
           </View>
+          <View style={{ width }}><MyTicketsContent draws={draws} /></View>
           <View style={{ width }}><StatsContent draws={draws} /></View>
         </ScrollView>
 
