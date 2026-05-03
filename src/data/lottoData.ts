@@ -1,7 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import rawData from '../../data/lotto_history.json';
 
-const REMOTE_LOTTO_URL = 'https://gist.githubusercontent.com/YooGeunHyuk/c43d9902c513e986c4a9ee2bd78eee33/raw/lotto.json';
+const REMOTE_LOTTO_URLS = [
+  'https://raw.githubusercontent.com/YooGeunHyuk/lotto-angle-app/main/data/lotto_history.json',
+  'https://gist.githubusercontent.com/YooGeunHyuk/c43d9902c513e986c4a9ee2bd78eee33/raw/lotto.json',
+];
 const OFFICIAL_LOTTO_URL = 'https://www.dhlottery.co.kr/common.do?method=getLottoNumber';
 const REMOTE_DRAWS_CACHE_KEY = 'remote_lotto_draws_cache';
 const MAX_OFFICIAL_LOOKAHEAD = 20;
@@ -99,12 +102,18 @@ export async function getRemoteDraws(): Promise<Draw[]> {
       return officialUpdates;
     }
 
-    const response = await fetch(`${REMOTE_LOTTO_URL}?t=${Date.now()}`);
-    if (!response.ok) throw new Error(`Remote lotto data failed: ${response.status}`);
+    for (const url of REMOTE_LOTTO_URLS) {
+      const response = await fetch(`${url}?t=${Date.now()}`);
+      if (!response.ok) continue;
 
-    const draws = normalizeDraws(await response.json());
-    await AsyncStorage.setItem(REMOTE_DRAWS_CACHE_KEY, JSON.stringify(draws));
-    return draws;
+      const draws = normalizeDraws(await response.json());
+      if (draws.length > 0) {
+        await AsyncStorage.setItem(REMOTE_DRAWS_CACHE_KEY, JSON.stringify(draws));
+        return draws;
+      }
+    }
+
+    throw new Error('Remote lotto data was not available');
   } catch {
     try {
       const cached = await AsyncStorage.getItem(REMOTE_DRAWS_CACHE_KEY);

@@ -1,0 +1,37 @@
+name: Update lotto data
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Lotto 6/45 results are usually available Saturday night in Korea.
+    - cron: '30 13 * * 6'
+
+permissions:
+  contents: write
+
+jobs:
+  update-lotto-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Fetch latest draw data
+        run: npm run update:lotto
+
+      - name: Commit updated draw database
+        run: |
+          if git diff --quiet -- data/lotto_history.json; then
+            echo "No new lotto data."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/lotto_history.json
+          git commit -m "Update lotto draw database"
+          git push

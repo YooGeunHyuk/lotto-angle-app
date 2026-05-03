@@ -2,7 +2,8 @@ const fs = require('fs');
 const path = require('path');
 
 const OUTPUT_PATH = path.join(__dirname, '../data/lotto_history.json');
-const DELAY_MS = 150;
+const DELAY_MS = Number(process.env.LOTTO_FETCH_DELAY_MS || 350);
+const LOOKAHEAD = Number(process.env.LOTTO_LOOKAHEAD || 20);
 
 const HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -27,12 +28,10 @@ async function fetchDraw(drawNo, retries = 3) {
       const data = JSON.parse(text);
       if (data.returnValue !== 'success') return null;
       return {
-        drwNo: data.drwNo,
-        drwNoDate: data.drwNoDate,
-        numbers: [data.drwtNo1, data.drwtNo2, data.drwtNo3, data.drwtNo4, data.drwtNo5, data.drwtNo6],
-        bonus: data.bnusNo,
-        firstWinamnt: data.firstWinamnt,
-        firstPrzwnerCo: data.firstPrzwnerCo,
+        drwNo: Number(data.drwNo),
+        drwNoDate: String(data.drwNoDate).replace(/-/g, '.'),
+        numbers: [data.drwtNo1, data.drwtNo2, data.drwtNo3, data.drwtNo4, data.drwtNo5, data.drwtNo6].map(Number),
+        bonus: Number(data.bnusNo),
       };
     } catch (e) {
       if (attempt < retries - 1) {
@@ -44,16 +43,30 @@ async function fetchDraw(drawNo, retries = 3) {
   return null;
 }
 
-async function getLatestDrawNo() {
-  let lo = 1100, hi = 1300;
-  while (lo < hi) {
-    const mid = Math.ceil((lo + hi) / 2);
-    const data = await fetchDraw(mid);
-    if (data) lo = mid;
-    else hi = mid - 1;
-    await sleep(DELAY_MS);
-  }
-  return lo;
+function isValidDraw(draw) {
+  return Number.isInteger(draw?.drwNo)
+    && typeof draw.drwNoDate === 'string'
+    && Array.isArray(draw.numbers)
+    && draw.numbers.length === 6
+    && draw.numbers.every(n => Number.isInteger(n) && n >= 1 && n <= 45)
+    && new Set(draw.numbers).size === 6
+    && Number.isInteger(draw.bonus)
+    && draw.bonus >= 1
+    && draw.bonus <= 45
+    && !draw.numbers.includes(draw.bonus);
+}
+
+function mergeDraws(draws) {
+  const byRound = new Map();
+  draws.filter(isValidDraw).forEach(draw => {
+    byRound.set(draw.drwNo, {
+      drwNo: draw.drwNo,
+      drwNoDate: draw.drwNoDate.replace(/-/g, '.'),
+      numbers: [...draw.numbers].sort((a, b) => a - b),
+      bonus: draw.bonus,
+    });
+  });
+  return Array.from(byRound.values()).sort((a, b) => a.drwNo - b.drwNo);
 }
 
 async function main() {
@@ -62,31 +75,33 @@ async function main() {
 
   let existing = [];
   if (fs.existsSync(OUTPUT_PATH)) {
-    existing = JSON.parse(fs.readFileSync(OUTPUT_PATH, 'utf8'));
-    console.log(`기존 데이터: ${existing.length}회차`);
+    existing = mergeDraws(JSON.parse(fs.readFileSync(OUTPUT_PATH, 'utf8')));
   }
 
-  const startFrom = existing.length > 0 ? existing[existing.length - 1].drwNo + 1 : 1;
-
-  console.log('최신 회차 확인 중...');
-  const latestNo = await getLatestDrawNo();
-  console.log(`최신 회차: ${latestNo}회`);
-  console.log(`${startFrom}회차부터 ${latestNo}회차까지 수집 시작...`);
+  const latestExisting = existing[existing.length - 1]?.drwNo ?? 0;
+  const startFrom = latestExisting + 1;
+  const stopAt = latestExisting + LOOKAHEAD;
+  console.log(`기존 데이터: ${existing.length}개, 최신 ${latestExisting || '없음'}회`);
+  console.log(`${startFrom}회차부터 최대 ${stopAt}회차까지 확인합니다.`);
 
   const results = [...existing];
-  for (let i = startFrom; i <= latestNo; i++) {
+  let added = 0;
+  for (let i = startFrom; i <= stopAt; i++) {
     const draw = await fetchDraw(i);
     if (draw) {
       results.push(draw);
-      if (i % 50 === 0 || i === latestNo) {
-        process.stdout.write(`\r${i}/${latestNo}회차 완료`);
-        fs.writeFileSync(OUTPUT_PATH, JSON.stringify(results, null, 2));
-      }
+      added += 1;
+      console.log(`${i}회 추가: ${draw.numbers.join(', ')} + ${draw.bonus}`);
+    } else {
+      console.log(`${i}회 데이터가 아직 없습니다.`);
+      break;
     }
     await sleep(DELAY_MS);
   }
 
-  console.log(`\n완료! 총 ${results.length}회차 저장 → ${OUTPUT_PATH}`);
+  const merged = mergeDraws(results);
+  fs.writeFileSync(OUTPUT_PATH, `${JSON.stringify(merged, null, 2)}\n`);
+  console.log(`완료! ${added}개 추가, 총 ${merged.length}회차 저장 → ${OUTPUT_PATH}`);
 }
 
 main().catch(console.error);
