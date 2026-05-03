@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import AdBanner from '../components/AdBanner';
@@ -17,6 +17,18 @@ const MODES: { label: string; value: LuckyStoreMode }[] = [
   { label: '판매점', value: 'nearbyRetail' },
   { label: '내 주변 명당', value: 'nearbyLucky' },
   { label: '전국 명당', value: 'nationalLucky' },
+];
+
+const LOCAL_VIEWS: { label: string; value: Exclude<LuckyStoreMode, 'nationalLucky'> }[] = [
+  { label: '내 주변 판매점', value: 'nearbyRetail' },
+  { label: '내 주변 명당', value: 'nearbyLucky' },
+];
+
+type NationalView = 'rank' | 'regional' | 'recent';
+const NATIONAL_VIEWS: { label: string; value: NationalView }[] = [
+  { label: '전국 순위', value: 'rank' },
+  { label: '지역별 명당', value: 'regional' },
+  { label: '최근 회차 판매점', value: 'recent' },
 ];
 
 const REGION_FULL: Record<string, string> = {
@@ -57,6 +69,13 @@ function modeTitle(mode: LuckyStoreMode, hasLocation: boolean) {
   if (mode === 'nearbyRetail') return hasLocation ? '내 주변 로또 판매점' : '내 주변 로또 판매점 찾기';
   if (mode === 'nearbyLucky') return hasLocation ? '내 주변 명당' : '내 주변 명당 찾기';
   return '전국 명당';
+}
+
+function sectionTitle(mode: LuckyStoreMode, nationalView: NationalView, hasLocation: boolean) {
+  if (mode !== 'nationalLucky') return modeTitle(mode, hasLocation);
+  if (nationalView === 'regional') return '지역별 명당';
+  if (nationalView === 'recent') return `${luckyStorePayload.latestRound}회 판매점`;
+  return '전국 명당 순위';
 }
 
 function normalizeText(value: unknown) {
@@ -100,6 +119,7 @@ function getDistance(store: DisplayStore) {
 
 const luckyById = new Map(luckyStores.map(store => [store.id, store]));
 const luckyByNameAddress = new Map(luckyStores.map(store => [storeKey(store.name, store.address), store]));
+const regionOrder = Object.keys(REGION_FULL);
 
 function mergeRetailStore(item: RetailApiStore, location: StoreLocation): DisplayStore | null {
   const lat = Number(item.shpLat);
@@ -205,12 +225,40 @@ function StoreCard({
   );
 }
 
+function regionalLuckyStores() {
+  const bestByRegion = new Map<string, LuckyStore>();
+  nationalLuckyStores().forEach(store => {
+    const region = store.address.split(/\s+/)[0] || store.region || '기타';
+    if (!bestByRegion.has(region)) bestByRegion.set(region, store);
+  });
+
+  return Array.from(bestByRegion.entries())
+    .sort(([a], [b]) => {
+      const ai = regionOrder.indexOf(a);
+      const bi = regionOrder.indexOf(b);
+      if (ai !== -1 && bi !== -1) return ai - bi;
+      if (ai !== -1) return -1;
+      if (bi !== -1) return 1;
+      return a.localeCompare(b, 'ko');
+    })
+    .map(([, store]) => store);
+}
+
+function recentRoundStores() {
+  return luckyStores
+    .filter(store => store.lastRound === luckyStorePayload.latestRound)
+    .sort((a, b) => a.lastRank - b.lastRank || b.firstWins - a.firstWins || b.secondWins - a.secondWins);
+}
+
 export default function LuckyMapContent() {
   const mapRef = useRef<MapView>(null);
   const listRef = useRef<FlatList<DisplayStore>>(null);
   const [mode, setMode] = useState<LuckyStoreMode>('nearbyRetail');
+  const [nationalView, setNationalView] = useState<NationalView>('rank');
+  const [showMap, setShowMap] = useState(false);
   const [location, setLocation] = useState<StoreLocation | null>(null);
-  const [locationMessage, setLocationMessage] = useState('위치 확인을 누르면 주변 로또 판매점을 찾습니다');
+  const [locationMessage, setLocationMessage] = useState('위치 권한을 확인하고 주변 목록을 불러옵니다');
+  const [locationRequested, setLocationRequested] = useState(false);
   const [locating, setLocating] = useState(false);
   const [retailStores, setRetailStores] = useState<DisplayStore[]>([]);
   const [retailAreaLabel, setRetailAreaLabel] = useState('');
@@ -218,18 +266,22 @@ export default function LuckyMapContent() {
 
   const nearbyLucky = useMemo(() => location ? nearbyLuckyStores(location, 'all') : [], [location]);
   const nationalStores = useMemo(() => nationalLuckyStores(), []);
+  const regionalStores = useMemo(() => regionalLuckyStores(), []);
+  const recentStores = useMemo(() => recentRoundStores(), []);
+  const nationalViewStores = nationalView === 'regional' ? regionalStores : nationalView === 'recent' ? recentStores : nationalStores;
   const stores: DisplayStore[] = mode === 'nearbyRetail'
     ? retailStores
     : mode === 'nearbyLucky'
       ? nearbyLucky
-      : nationalStores;
+      : nationalViewStores;
   const selectedStore = stores.find(store => store.id === selectedId) ?? stores[0];
-  const markerStores = mode === 'nationalLucky' ? [] : stores.slice(0, MARKER_LIMIT);
-  const title = modeTitle(mode, Boolean(location));
+  const markerStores = stores.slice(0, MARKER_LIMIT);
+  const title = sectionTitle(mode, nationalView, Boolean(location));
   const needsLocation = mode !== 'nationalLucky';
 
-  async function locateMe() {
+  const locateMe = useCallback(async (targetMode: LuckyStoreMode = mode) => {
     setLocating(true);
+    setLocationRequested(true);
     try {
       const permission = await Location.requestForegroundPermissionsAsync();
       if (permission.status !== 'granted') {
@@ -240,23 +292,29 @@ export default function LuckyMapContent() {
       const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const nextLocation = { lat: current.coords.latitude, lng: current.coords.longitude };
       setLocation(nextLocation);
-      setLocationMessage('공식 판매점 목록을 불러오는 중입니다');
+      setLocationMessage(targetMode === 'nearbyRetail' ? '공식 판매점 목록을 불러오는 중입니다' : '내 주변 명당을 정렬하는 중입니다');
 
-      try {
-        const retail = await fetchRetailStores(nextLocation);
-        setRetailStores(retail.stores);
-        setRetailAreaLabel(retail.label);
-        setSelectedId(retail.stores[0]?.id);
-        setLocationMessage(`${retail.label} 기준 로또 판매점을 표시합니다`);
-      } catch {
-        const fallbackStores = nearbyLuckyStores(nextLocation, 'all', 12);
-        setRetailStores(fallbackStores);
-        setRetailAreaLabel('당첨 이력 판매점');
-        setSelectedId(fallbackStores[0]?.id);
-        setLocationMessage('판매점 조회가 잠시 불안정해 당첨 이력 판매점으로 표시합니다');
+      if (targetMode === 'nearbyRetail') {
+        try {
+          const retail = await fetchRetailStores(nextLocation);
+          setRetailStores(retail.stores);
+          setRetailAreaLabel(retail.label);
+          setSelectedId(retail.stores[0]?.id);
+          setLocationMessage(`${retail.label} 기준 로또 판매점을 표시합니다`);
+        } catch {
+          const fallbackStores = nearbyLuckyStores(nextLocation, 'all', 12);
+          setRetailStores(fallbackStores);
+          setRetailAreaLabel('당첨 이력 판매점');
+          setSelectedId(fallbackStores[0]?.id);
+          setLocationMessage('판매점 조회가 잠시 불안정해 당첨 이력 판매점으로 표시합니다');
+        }
+      } else {
+        const nextLuckyStores = nearbyLuckyStores(nextLocation, 'all');
+        setSelectedId(nextLuckyStores[0]?.id);
+        setLocationMessage('가까운 명당을 당첨 이력 기준으로 표시합니다');
       }
 
-      setMode('nearbyRetail');
+      setMode(targetMode);
       listRef.current?.scrollToOffset({ offset: 0, animated: true });
       mapRef.current?.animateToRegion({
         latitude: nextLocation.lat,
@@ -267,7 +325,13 @@ export default function LuckyMapContent() {
     } finally {
       setLocating(false);
     }
-  }
+  }, [mode]);
+
+  useEffect(() => {
+    if (needsLocation && !location && !locationRequested && !locating) {
+      void locateMe(mode);
+    }
+  }, [locateMe, locating, location, locationRequested, mode, needsLocation]);
 
   function focusStore(store: DisplayStore) {
     setSelectedId(store.id);
@@ -281,8 +345,32 @@ export default function LuckyMapContent() {
 
   function selectMode(nextMode: LuckyStoreMode) {
     setMode(nextMode);
+    setShowMap(false);
     setSelectedId(undefined);
     listRef.current?.scrollToOffset({ offset: 0, animated: true });
+    if (nextMode !== 'nationalLucky' && !location && !locating) {
+      void locateMe(nextMode);
+    }
+  }
+
+  function selectNationalView(nextView: NationalView) {
+    setNationalView(nextView);
+    setShowMap(false);
+    setSelectedId(undefined);
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
+  }
+
+  function focusMyLocation() {
+    if (!location) {
+      void locateMe(mode);
+      return;
+    }
+    mapRef.current?.animateToRegion({
+      latitude: location.lat,
+      longitude: location.lng,
+      latitudeDelta: 0.25,
+      longitudeDelta: 0.25,
+    }, 350);
   }
 
   function renderStore({ item }: { item: DisplayStore }) {
@@ -307,20 +395,38 @@ export default function LuckyMapContent() {
         ))}
       </View>
 
+      <View style={s.subControlRow}>
+        <View style={s.subTabs}>
+          {mode === 'nationalLucky' ? NATIONAL_VIEWS.map(item => (
+            <TouchableOpacity key={item.value} style={[s.subTab, nationalView === item.value && s.subTabActive]} onPress={() => selectNationalView(item.value)} activeOpacity={0.78}>
+              <Text style={[s.subTabText, nationalView === item.value && s.subTabTextActive]}>{item.label}</Text>
+            </TouchableOpacity>
+          )) : LOCAL_VIEWS.map(item => (
+            <TouchableOpacity key={item.value} style={[s.subTab, mode === item.value && s.subTabActive]} onPress={() => selectMode(item.value)} activeOpacity={0.78}>
+              <Text style={[s.subTabText, mode === item.value && s.subTabTextActive]}>{item.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <TouchableOpacity style={[s.mapToggleBtn, showMap && s.mapToggleBtnActive]} onPress={() => setShowMap(prev => !prev)} activeOpacity={0.78}>
+          <Ionicons name={showMap ? 'list-outline' : 'map-outline'} size={14} color={showMap ? '#FFFFFF' : C.black} />
+          <Text style={[s.mapToggleText, showMap && s.mapToggleTextActive]}>{showMap ? '리스트' : '지도 표시'}</Text>
+        </TouchableOpacity>
+      </View>
+
       {needsLocation && (
         <View style={s.locationCard}>
           <View style={{ flex: 1 }}>
             <Text style={s.locationTitle}>내 위치 기준</Text>
             <Text style={s.locationText}>{locationMessage}</Text>
           </View>
-          <TouchableOpacity style={s.locationBtn} onPress={locateMe} disabled={locating} activeOpacity={0.75}>
+          <TouchableOpacity style={s.locationBtn} onPress={() => locateMe(mode)} disabled={locating} activeOpacity={0.75}>
             <Ionicons name="locate-outline" size={15} color="#FFFFFF" />
             <Text style={s.locationBtnText}>{locating ? '확인 중' : '위치 확인'}</Text>
           </TouchableOpacity>
         </View>
       )}
 
-      {mode !== 'nationalLucky' && (
+      {showMap && (
         <>
           <View style={s.mapCard}>
             <MapView
@@ -329,6 +435,7 @@ export default function LuckyMapContent() {
               provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
               initialRegion={KOREA_REGION}
               showsUserLocation={Boolean(location)}
+              showsMyLocationButton={Boolean(location)}
               showsCompass
             >
               {markerStores.map(store => (
@@ -342,6 +449,9 @@ export default function LuckyMapContent() {
                 />
               ))}
             </MapView>
+            <TouchableOpacity style={s.mapLocateBtn} onPress={focusMyLocation} activeOpacity={0.82}>
+              <Ionicons name="locate" size={18} color={C.black} />
+            </TouchableOpacity>
           </View>
 
           {selectedStore && (
@@ -391,6 +501,16 @@ const s = StyleSheet.create({
   modeBtnActive: { backgroundColor: C.black, borderColor: C.black },
   modeText: { fontSize: 12, fontWeight: '800', color: C.gray, textAlign: 'center' },
   modeTextActive: { color: '#FFFFFF' },
+  subControlRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, marginTop: 10 },
+  subTabs: { flex: 1, flexDirection: 'row', gap: 6 },
+  subTab: { flex: 1, minHeight: 34, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, borderRadius: 999, paddingHorizontal: 7, alignItems: 'center', justifyContent: 'center' },
+  subTabActive: { backgroundColor: C.black, borderColor: C.black },
+  subTabText: { fontSize: 10.5, fontWeight: '800', color: C.gray, textAlign: 'center' },
+  subTabTextActive: { color: '#FFFFFF' },
+  mapToggleBtn: { minHeight: 34, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderWidth: 1, borderColor: C.border, backgroundColor: '#FFFFFF', borderRadius: 999, paddingHorizontal: 10 },
+  mapToggleBtnActive: { backgroundColor: C.black, borderColor: C.black },
+  mapToggleText: { fontSize: 10.5, fontWeight: '800', color: C.black },
+  mapToggleTextActive: { color: '#FFFFFF' },
   locationCard: { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 16, marginTop: 12, backgroundColor: C.card, borderRadius: 16, borderWidth: 1, borderColor: C.border, padding: 14 },
   locationTitle: { fontSize: 12, fontWeight: '800', color: C.black },
   locationText: { fontSize: 11, color: C.gray, lineHeight: 16, marginTop: 3 },
@@ -398,6 +518,7 @@ const s = StyleSheet.create({
   locationBtnText: { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
   mapCard: { height: 300, marginHorizontal: 16, marginTop: 12, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: C.border, backgroundColor: C.card },
   map: { flex: 1 },
+  mapLocateBtn: { position: 'absolute', right: 12, top: 12, width: 38, height: 38, borderRadius: 19, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
   selectedCard: { marginTop: 12 },
   selectedTitle: { fontSize: 13, fontWeight: '800', color: C.black, marginHorizontal: 16 },
   listHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 16, marginTop: 14, marginBottom: 2 },
