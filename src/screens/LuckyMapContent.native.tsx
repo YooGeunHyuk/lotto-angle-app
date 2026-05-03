@@ -331,9 +331,6 @@ export default function LuckyMapContent() {
               showsUserLocation={Boolean(location)}
               showsCompass
             >
-              {location && (
-                <Marker coordinate={{ latitude: location.lat, longitude: location.lng }} title="내 위치" pinColor={C.black} />
-              )}
               {markerStores.map(store => (
                 <Marker
                   key={store.id}
@@ -349,7 +346,7 @@ export default function LuckyMapContent() {
 
           {selectedStore && (
             <View style={s.selectedCard}>
-              <Text style={s.sectionTitle}>선택한 판매점</Text>
+              <Text style={s.selectedTitle}>선택한 판매점</Text>
               <StoreCard store={selectedStore} selected onPress={() => focusStore(selectedStore)} />
             </View>
           )}
@@ -401,7 +398,8 @@ const s = StyleSheet.create({
   locationBtnText: { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
   mapCard: { height: 300, marginHorizontal: 16, marginTop: 12, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: C.border, backgroundColor: C.card },
   map: { flex: 1 },
-  selectedCard: { marginHorizontal: 16, marginTop: 12 },
+  selectedCard: { marginTop: 12 },
+  selectedTitle: { fontSize: 13, fontWeight: '800', color: C.black, marginHorizontal: 16 },
   listHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 16, marginTop: 14, marginBottom: 2 },
   sectionTitle: { fontSize: 13, fontWeight: '800', color: C.black },
   dim: { fontSize: 10, color: C.gray },
