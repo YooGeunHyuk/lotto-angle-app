@@ -46,7 +46,7 @@ export default function HomeContent({ draws }: { draws: Draw[] }) {
             <View style={s.headerActions}>
               <View style={s.actionGroup}>
               <TouchableOpacity style={s.infoButton} onPress={() => setIsInfoOpen(prev => !prev)} activeOpacity={0.8}>
-                <Text style={s.infoButtonText}>!</Text>
+                <Text style={s.infoButtonText}>i</Text>
               </TouchableOpacity>
               {isInfoOpen && (
                 <View style={s.infoBubbleWrap}>

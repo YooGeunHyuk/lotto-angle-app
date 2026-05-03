@@ -4,14 +4,13 @@ import { FlatList, Linking, StyleSheet, Text, TouchableOpacity, View } from 'rea
 import AdBanner from '../components/AdBanner';
 import HeaderInfo from '../components/HeaderInfo';
 import ScreenHeader from '../components/ScreenHeader';
-import { LuckyStore, LuckyStoreMode, luckyStorePayload, storesForLuckyMode, storeSummary } from '../data/luckyStores';
+import { LuckyStore, LuckyStoreMode, luckyStorePayload, nationalLuckyStores, storeSummary } from '../data/luckyStores';
 
 const C = { bg: '#FFFFFF', card: '#F7F7F7', border: '#EEEEEE', black: '#1A1A1A', gray: '#999999', dim: '#CCCCCC', accent: '#D94F2A' };
 const MODES: { label: string; value: LuckyStoreMode }[] = [
-  { label: '내 주변', value: 'nearby' },
-  { label: '1등', value: 'first' },
-  { label: '2등', value: 'second' },
-  { label: '전국', value: 'national' },
+  { label: '판매점', value: 'nearbyRetail' },
+  { label: '내 주변 명당', value: 'nearbyLucky' },
+  { label: '전국 명당', value: 'nationalLucky' },
 ];
 
 function openMap(store: LuckyStore) {
@@ -20,10 +19,9 @@ function openMap(store: LuckyStore) {
 }
 
 function modeTitle(mode: LuckyStoreMode) {
-  if (mode === 'nearby') return '내 주변 로또 판매 매장 찾기';
-  if (mode === 'first') return '1등 당첨 판매점';
-  if (mode === 'second') return '2등 당첨 판매점';
-  return '전국 명당 리스트';
+  if (mode === 'nearbyRetail') return '내 주변 로또 판매점 찾기';
+  if (mode === 'nearbyLucky') return '내 주변 명당 찾기';
+  return '전국 명당';
 }
 
 function StoreCard({ store }: { store: LuckyStore }) {
@@ -51,15 +49,16 @@ function StoreCard({ store }: { store: LuckyStore }) {
 }
 
 export default function LuckyMapContent() {
-  const [mode, setMode] = useState<LuckyStoreMode>('nearby');
-  const stores = useMemo(() => storesForLuckyMode(mode), [mode]) as LuckyStore[];
-  const showNotice = mode === 'nearby';
+  const [mode, setMode] = useState<LuckyStoreMode>('nearbyRetail');
+  const nationalStores = useMemo(() => nationalLuckyStores(), []);
+  const stores = mode === 'nationalLucky' ? nationalStores : [];
+  const showLocationNotice = mode !== 'nationalLucky';
 
   const header = (
     <>
-      <ScreenHeader title="명당지도" subtitle={`${luckyStorePayload.periodLabel} · ${luckyStorePayload.startRound}~${luckyStorePayload.latestRound}회 · ${luckyStorePayload.stores.length}곳`} right={<HeaderInfo />} />
+      <ScreenHeader title="명당지도" subtitle={`${luckyStorePayload.periodLabel} · ${luckyStorePayload.startRound}~${luckyStorePayload.latestRound}회`} right={<HeaderInfo />} />
 
-      <View style={s.modeGrid}>
+      <View style={s.modeRow}>
         {MODES.map(item => (
           <TouchableOpacity key={item.value} style={[s.modeBtn, mode === item.value && s.modeBtnActive]} onPress={() => setMode(item.value)}>
             <Text style={[s.modeText, mode === item.value && s.modeTextActive]}>{item.label}</Text>
@@ -68,9 +67,9 @@ export default function LuckyMapContent() {
       </View>
 
       <View style={s.webMapNotice}>
-        <Ionicons name={showNotice ? 'locate-outline' : 'map-outline'} size={28} color={C.dim} />
-        <Text style={s.noticeTitle}>{showNotice ? '앱에서는 위치 권한으로 주변 판매점을 표시합니다' : '앱에서는 지도에서 선택 매장을 확인할 수 있습니다'}</Text>
-        <Text style={s.noticeText}>웹 미리보기에서는 리스트와 네이버 지도 링크로 먼저 확인할 수 있습니다.</Text>
+        <Ionicons name={showLocationNotice ? 'locate-outline' : 'map-outline'} size={28} color={C.dim} />
+        <Text style={s.noticeTitle}>{showLocationNotice ? '앱에서는 위치 권한으로 주변 목록을 표시합니다' : '전국에서 1등을 많이 배출한 순서입니다'}</Text>
+        <Text style={s.noticeText}>웹 미리보기에서는 전국 명당 리스트와 외부 지도 링크를 먼저 확인할 수 있습니다.</Text>
       </View>
 
       <View style={s.listHead}>
@@ -88,7 +87,7 @@ export default function LuckyMapContent() {
         renderItem={({ item }) => <StoreCard store={item} />}
         ListHeaderComponent={header}
         ListFooterComponent={<><AdBanner /><View style={{ height: 40 }} /></>}
-        ListEmptyComponent={<Text style={s.emptyText}>실기기 앱에서 위치 확인을 누르면 내 주변 판매점이 표시됩니다.</Text>}
+        ListEmptyComponent={<Text style={s.emptyText}>실기기 앱에서 위치 확인을 누르면 내 주변 목록이 표시됩니다.</Text>}
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}
         initialNumToRender={16}
@@ -102,10 +101,10 @@ export default function LuckyMapContent() {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.bg },
   content: { paddingBottom: 8 },
-  modeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 16, marginTop: 10 },
-  modeBtn: { width: '48.8%', borderWidth: 1, borderColor: C.border, backgroundColor: C.card, borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
+  modeRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginTop: 10 },
+  modeBtn: { flex: 1, minHeight: 44, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
   modeBtnActive: { backgroundColor: C.black, borderColor: C.black },
-  modeText: { fontSize: 13, fontWeight: '800', color: C.gray },
+  modeText: { fontSize: 12, fontWeight: '800', color: C.gray, textAlign: 'center' },
   modeTextActive: { color: '#FFFFFF' },
   webMapNotice: { marginHorizontal: 16, marginTop: 12, backgroundColor: C.card, borderRadius: 16, borderWidth: 1, borderColor: C.border, minHeight: 150, justifyContent: 'center', alignItems: 'center', padding: 20 },
   noticeTitle: { fontSize: 14, fontWeight: '800', color: C.black, marginTop: 8, textAlign: 'center' },

@@ -31,7 +31,7 @@ export interface LuckyStorePayload {
 }
 
 export type StoreRankFilter = 'all' | 'first' | 'second';
-export type LuckyStoreMode = 'nearby' | 'first' | 'second' | 'national';
+export type LuckyStoreMode = 'nearbyRetail' | 'nearbyLucky' | 'nationalLucky';
 
 export interface StoreLocation {
   lat: number;
@@ -48,13 +48,6 @@ export const luckyStores = luckyStorePayload.stores;
 export function filterLuckyStores(filter: StoreRankFilter): LuckyStore[] {
   if (filter === 'first') return luckyStores.filter(store => store.firstWins > 0);
   if (filter === 'second') return luckyStores.filter(store => store.secondWins > 0);
-  return luckyStores;
-}
-
-export function storesForLuckyMode(mode: LuckyStoreMode, location?: StoreLocation | null): LuckyStore[] | LuckyStoreWithDistance[] {
-  if (mode === 'nearby') return location ? nearbyLuckyStores(location, 'all') : [];
-  if (mode === 'first') return filterLuckyStores('first');
-  if (mode === 'second') return filterLuckyStores('second');
   return luckyStores;
 }
 
@@ -81,6 +74,15 @@ export function nearbyLuckyStores(location: StoreLocation, filter: StoreRankFilt
   const useStores = nearby.length >= 8 ? nearby : stores.sort((a, b) => a.distanceKm - b.distanceKm).slice(0, 40);
 
   return useStores.sort((a, b) => b.score - a.score || b.totalWins - a.totalWins || a.distanceKm - b.distanceKm);
+}
+
+export function nationalLuckyStores(): LuckyStore[] {
+  return [...luckyStores].sort((a, b) =>
+    b.firstWins - a.firstWins ||
+    b.secondWins - a.secondWins ||
+    b.totalWins - a.totalWins ||
+    b.lastRound - a.lastRound
+  );
 }
 
 export function storeSummary(store: LuckyStore): string {

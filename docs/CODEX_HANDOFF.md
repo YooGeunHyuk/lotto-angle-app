@@ -111,11 +111,11 @@ Current implementation:
 - `명당` tab is wired into `app/(tabs)/index.tsx` after `내 번호` and before `통계`.
 - Native app uses `react-native-maps` and markers.
 - Web preview uses a list fallback with external Naver Map links.
-- The lucky-store screen has four top-level modes:
-  - `내 주변`: default mode; uses `expo-location` permission and ranks nearby winning stores by win score.
-  - `1등`: lists first-prize winning stores and shows them on the map.
-  - `2등`: lists second-prize winning stores and shows them on the map.
-  - `전국`: list-only national ranking; `위치 보기` switches the selected store into map mode.
+- The lucky-store screen has three top-level modes:
+  - `판매점`: default mode; uses `expo-location` permission, infers the current administrative area, and fetches official nearby Lotto 6/45 retailers from `/prchsplcsrch/selectLtShp.do`.
+  - `내 주변 명당`: nearby stores with bundled 1st/2nd-prize history.
+  - `전국 명당`: list-only national ranking sorted by first-prize wins, with second-prize counts shown.
+- If the official retailer endpoint is unavailable in native mode, `판매점` falls back to nearby winning-store data.
 - Data comes from Donghaeng Lottery's winning-store API and is bundled in `data/lucky_stores.json`.
 - Current bundled dataset:
   - Lotto 6/45
