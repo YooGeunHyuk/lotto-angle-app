@@ -40,7 +40,7 @@ const s = StyleSheet.create({
   },
   infoButton: {
     position: 'absolute',
-    top: -10,
+    top: -5,
     right: 5,
     width: 18,
     height: 18,
