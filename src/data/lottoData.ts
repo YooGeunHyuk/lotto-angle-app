@@ -2,7 +2,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import rawData from '../../data/lotto_history.json';
 
 const REMOTE_LOTTO_URL = 'https://gist.githubusercontent.com/YooGeunHyuk/c43d9902c513e986c4a9ee2bd78eee33/raw/lotto.json';
+const OFFICIAL_LOTTO_URL = 'https://www.dhlottery.co.kr/common.do?method=getLottoNumber';
 const REMOTE_DRAWS_CACHE_KEY = 'remote_lotto_draws_cache';
+const MAX_OFFICIAL_LOOKAHEAD = 20;
 
 export interface Draw {
   drwNo: number;
@@ -38,6 +40,20 @@ function normalizeDraw(raw: unknown): Draw | null {
   };
 }
 
+function normalizeOfficialDraw(raw: unknown): Draw | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const item = raw as Record<string, unknown>;
+  if (item.returnValue !== 'success') return null;
+
+  const numbers = [1, 2, 3, 4, 5, 6].map(index => Number(item[`drwtNo${index}`]));
+  return normalizeDraw({
+    drwNo: item.drwNo,
+    drwNoDate: item.drwNoDate,
+    numbers,
+    bonus: item.bnusNo,
+  });
+}
+
 function normalizeDraws(raw: unknown): Draw[] {
   if (!Array.isArray(raw)) return [];
   return raw
@@ -46,8 +62,43 @@ function normalizeDraws(raw: unknown): Draw[] {
     .sort((a, b) => a.drwNo - b.drwNo);
 }
 
+async function fetchOfficialDraw(drawNo: number): Promise<Draw | null> {
+  try {
+    const response = await fetch(`${OFFICIAL_LOTTO_URL}&drwNo=${drawNo}`, {
+      headers: {
+        Accept: 'application/json, text/plain, */*',
+      },
+    });
+    if (!response.ok) return null;
+
+    const text = await response.text();
+    return normalizeOfficialDraw(JSON.parse(text));
+  } catch {
+    return null;
+  }
+}
+
+async function getOfficialUpdates(): Promise<Draw[]> {
+  const updates: Draw[] = [];
+  const latestLocalDrawNo = allDraws[allDraws.length - 1]?.drwNo ?? 0;
+
+  for (let drawNo = latestLocalDrawNo + 1; drawNo <= latestLocalDrawNo + MAX_OFFICIAL_LOOKAHEAD; drawNo += 1) {
+    const draw = await fetchOfficialDraw(drawNo);
+    if (!draw) break;
+    updates.push(draw);
+  }
+
+  return updates;
+}
+
 export async function getRemoteDraws(): Promise<Draw[]> {
   try {
+    const officialUpdates = await getOfficialUpdates();
+    if (officialUpdates.length > 0) {
+      await AsyncStorage.setItem(REMOTE_DRAWS_CACHE_KEY, JSON.stringify(officialUpdates));
+      return officialUpdates;
+    }
+
     const response = await fetch(`${REMOTE_LOTTO_URL}?t=${Date.now()}`);
     if (!response.ok) throw new Error(`Remote lotto data failed: ${response.status}`);
 
