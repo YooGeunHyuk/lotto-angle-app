@@ -92,9 +92,9 @@ export default function App() {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#FFFFFF' }, // 🌟 모든 페이지 배경색 통일
   root: { flex: 1 },
-  tabBar: { flexDirection: 'row', backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#EEEEEE', paddingTop: 8, paddingBottom: 13 },
-  tab: { flex: 1, alignItems: 'center', justifyContent: 'flex-start', minHeight: 56, paddingTop: 2 },
-  tabText: { fontSize: 11, color: '#BBBBBB', fontWeight: '600', marginTop: 2 },
+  tabBar: { flexDirection: 'row', backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#EEEEEE', paddingTop: 8, paddingBottom: 13, paddingHorizontal: 14 },
+  tab: { flex: 1, alignItems: 'center', justifyContent: 'flex-start', minHeight: 56, paddingTop: 2, paddingHorizontal: 2 },
+  tabText: { fontSize: 10.5, color: '#BBBBBB', fontWeight: '600', marginTop: 2 },
   tabActive: { color: '#1A1A1A' },
   indicator: { width: 20, height: 3, backgroundColor: '#D94F2A', borderRadius: 1.5, marginTop: 4 },
 });
