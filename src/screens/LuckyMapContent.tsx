@@ -63,7 +63,7 @@ function StoreCard({ store }: { store: LuckyStore }) {
   );
 }
 
-export default function LuckyMapContent() {
+export default function LuckyMapContent({ isActive = true }: { isActive?: boolean }) {
   const [mode, setMode] = useState<LuckyStoreMode>('nearbyRetail');
   const [nationalView, setNationalView] = useState<NationalView>('rank');
   const [showMap, setShowMap] = useState(false);
@@ -75,7 +75,7 @@ export default function LuckyMapContent() {
       : nationalView === 'recent'
         ? nationalStores.filter(store => store.lastRound === luckyStorePayload.latestRound)
         : nationalStores;
-  const showLocationNotice = mode !== 'nationalLucky';
+  const showLocationNotice = isActive && mode !== 'nationalLucky';
 
   const header = (
     <>
@@ -108,7 +108,7 @@ export default function LuckyMapContent() {
         </View>
         <TouchableOpacity style={[s.mapToggleBtn, showMap && s.mapToggleBtnActive]} onPress={() => setShowMap(prev => !prev)}>
           <Ionicons name={showMap ? 'list-outline' : 'map-outline'} size={14} color={showMap ? '#FFFFFF' : C.black} />
-          <Text style={[s.mapToggleText, showMap && s.mapToggleTextActive]}>{showMap ? '리스트' : '지도 표시'}</Text>
+          <Text style={[s.mapToggleText, showMap && s.mapToggleTextActive]}>{showMap ? '리스트' : '지도'}</Text>
         </TouchableOpacity>
       </View>
 
@@ -152,13 +152,13 @@ const s = StyleSheet.create({
   modeBtnActive: { backgroundColor: C.black, borderColor: C.black },
   modeText: { fontSize: 12, fontWeight: '800', color: C.gray, textAlign: 'center' },
   modeTextActive: { color: '#FFFFFF' },
-  subControlRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, marginTop: 10 },
+  subControlRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginHorizontal: 16, marginTop: 8, padding: 6, borderWidth: 1, borderColor: C.border, backgroundColor: '#FBFBFB', borderRadius: 18 },
   subTabs: { flex: 1, flexDirection: 'row', gap: 6 },
-  subTab: { flex: 1, minHeight: 34, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, borderRadius: 999, paddingHorizontal: 7, alignItems: 'center', justifyContent: 'center' },
+  subTab: { flex: 1, minHeight: 32, borderWidth: 1, borderColor: C.border, backgroundColor: '#FFFFFF', borderRadius: 999, paddingHorizontal: 7, alignItems: 'center', justifyContent: 'center' },
   subTabActive: { backgroundColor: C.black, borderColor: C.black },
   subTabText: { fontSize: 10.5, fontWeight: '800', color: C.gray, textAlign: 'center' },
   subTabTextActive: { color: '#FFFFFF' },
-  mapToggleBtn: { minHeight: 34, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderWidth: 1, borderColor: C.border, backgroundColor: '#FFFFFF', borderRadius: 999, paddingHorizontal: 10 },
+  mapToggleBtn: { minHeight: 32, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderWidth: 1, borderColor: C.border, backgroundColor: '#FFFFFF', borderRadius: 999, paddingHorizontal: 10 },
   mapToggleBtnActive: { backgroundColor: C.black, borderColor: C.black },
   mapToggleText: { fontSize: 10.5, fontWeight: '800', color: C.black },
   mapToggleTextActive: { color: '#FFFFFF' },

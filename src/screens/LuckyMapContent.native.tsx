@@ -250,14 +250,13 @@ function recentRoundStores() {
     .sort((a, b) => a.lastRank - b.lastRank || b.firstWins - a.firstWins || b.secondWins - a.secondWins);
 }
 
-export default function LuckyMapContent() {
+export default function LuckyMapContent({ isActive = true }: { isActive?: boolean }) {
   const mapRef = useRef<MapView>(null);
   const listRef = useRef<FlatList<DisplayStore>>(null);
   const [mode, setMode] = useState<LuckyStoreMode>('nearbyRetail');
   const [nationalView, setNationalView] = useState<NationalView>('rank');
   const [showMap, setShowMap] = useState(false);
   const [location, setLocation] = useState<StoreLocation | null>(null);
-  const [locationMessage, setLocationMessage] = useState('위치 권한을 확인하고 주변 목록을 불러옵니다');
   const [locationRequested, setLocationRequested] = useState(false);
   const [locating, setLocating] = useState(false);
   const [retailStores, setRetailStores] = useState<DisplayStore[]>([]);
@@ -285,14 +284,12 @@ export default function LuckyMapContent() {
     try {
       const permission = await Location.requestForegroundPermissionsAsync();
       if (permission.status !== 'granted') {
-        setLocationMessage('위치 권한을 허용하면 내 주변 판매점을 볼 수 있습니다');
         return;
       }
 
       const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const nextLocation = { lat: current.coords.latitude, lng: current.coords.longitude };
       setLocation(nextLocation);
-      setLocationMessage(targetMode === 'nearbyRetail' ? '공식 판매점 목록을 불러오는 중입니다' : '내 주변 명당을 정렬하는 중입니다');
 
       if (targetMode === 'nearbyRetail') {
         try {
@@ -300,18 +297,15 @@ export default function LuckyMapContent() {
           setRetailStores(retail.stores);
           setRetailAreaLabel(retail.label);
           setSelectedId(retail.stores[0]?.id);
-          setLocationMessage(`${retail.label} 기준 로또 판매점을 표시합니다`);
         } catch {
           const fallbackStores = nearbyLuckyStores(nextLocation, 'all', 12);
           setRetailStores(fallbackStores);
           setRetailAreaLabel('당첨 이력 판매점');
           setSelectedId(fallbackStores[0]?.id);
-          setLocationMessage('판매점 조회가 잠시 불안정해 당첨 이력 판매점으로 표시합니다');
         }
       } else {
         const nextLuckyStores = nearbyLuckyStores(nextLocation, 'all');
         setSelectedId(nextLuckyStores[0]?.id);
-        setLocationMessage('가까운 명당을 당첨 이력 기준으로 표시합니다');
       }
 
       setMode(targetMode);
@@ -328,10 +322,10 @@ export default function LuckyMapContent() {
   }, [mode]);
 
   useEffect(() => {
-    if (needsLocation && !location && !locationRequested && !locating) {
+    if (isActive && needsLocation && !location && !locationRequested && !locating) {
       void locateMe(mode);
     }
-  }, [locateMe, locating, location, locationRequested, mode, needsLocation]);
+  }, [isActive, locateMe, locating, location, locationRequested, mode, needsLocation]);
 
   function focusStore(store: DisplayStore) {
     setSelectedId(store.id);
@@ -358,6 +352,13 @@ export default function LuckyMapContent() {
     setShowMap(false);
     setSelectedId(undefined);
     listRef.current?.scrollToOffset({ offset: 0, animated: true });
+  }
+
+  function toggleMap() {
+    setShowMap(prev => !prev);
+    if (needsLocation && !location && !locating) {
+      void locateMe(mode);
+    }
   }
 
   function focusMyLocation() {
@@ -407,24 +408,11 @@ export default function LuckyMapContent() {
             </TouchableOpacity>
           ))}
         </View>
-        <TouchableOpacity style={[s.mapToggleBtn, showMap && s.mapToggleBtnActive]} onPress={() => setShowMap(prev => !prev)} activeOpacity={0.78}>
+        <TouchableOpacity style={[s.mapToggleBtn, showMap && s.mapToggleBtnActive]} onPress={toggleMap} activeOpacity={0.78}>
           <Ionicons name={showMap ? 'list-outline' : 'map-outline'} size={14} color={showMap ? '#FFFFFF' : C.black} />
-          <Text style={[s.mapToggleText, showMap && s.mapToggleTextActive]}>{showMap ? '리스트' : '지도 표시'}</Text>
+          <Text style={[s.mapToggleText, showMap && s.mapToggleTextActive]}>{showMap ? '리스트' : '지도'}</Text>
         </TouchableOpacity>
       </View>
-
-      {needsLocation && (
-        <View style={s.locationCard}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.locationTitle}>내 위치 기준</Text>
-            <Text style={s.locationText}>{locationMessage}</Text>
-          </View>
-          <TouchableOpacity style={s.locationBtn} onPress={() => locateMe(mode)} disabled={locating} activeOpacity={0.75}>
-            <Ionicons name="locate-outline" size={15} color="#FFFFFF" />
-            <Text style={s.locationBtnText}>{locating ? '확인 중' : '위치 확인'}</Text>
-          </TouchableOpacity>
-        </View>
-      )}
 
       {showMap && (
         <>
@@ -435,7 +423,7 @@ export default function LuckyMapContent() {
               provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
               initialRegion={KOREA_REGION}
               showsUserLocation={Boolean(location)}
-              showsMyLocationButton={Boolean(location)}
+              showsMyLocationButton={false}
               showsCompass
             >
               {markerStores.map(store => (
@@ -482,7 +470,7 @@ export default function LuckyMapContent() {
         renderItem={renderStore}
         ListHeaderComponent={header}
         ListFooterComponent={<><AdBanner /><View style={{ height: 40 }} /></>}
-        ListEmptyComponent={<Text style={s.emptyText}>{needsLocation ? '위치 확인을 누르면 내 주변 목록이 표시됩니다.' : '표시할 명당이 없습니다.'}</Text>}
+        ListEmptyComponent={<Text style={s.emptyText}>{needsLocation ? '위치 권한을 허용하면 내 주변 목록이 표시됩니다.' : '표시할 명당이 없습니다.'}</Text>}
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}
         initialNumToRender={14}
@@ -501,21 +489,16 @@ const s = StyleSheet.create({
   modeBtnActive: { backgroundColor: C.black, borderColor: C.black },
   modeText: { fontSize: 12, fontWeight: '800', color: C.gray, textAlign: 'center' },
   modeTextActive: { color: '#FFFFFF' },
-  subControlRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, marginTop: 10 },
+  subControlRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginHorizontal: 16, marginTop: 8, padding: 6, borderWidth: 1, borderColor: C.border, backgroundColor: '#FBFBFB', borderRadius: 18 },
   subTabs: { flex: 1, flexDirection: 'row', gap: 6 },
-  subTab: { flex: 1, minHeight: 34, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, borderRadius: 999, paddingHorizontal: 7, alignItems: 'center', justifyContent: 'center' },
+  subTab: { flex: 1, minHeight: 32, borderWidth: 1, borderColor: C.border, backgroundColor: '#FFFFFF', borderRadius: 999, paddingHorizontal: 7, alignItems: 'center', justifyContent: 'center' },
   subTabActive: { backgroundColor: C.black, borderColor: C.black },
   subTabText: { fontSize: 10.5, fontWeight: '800', color: C.gray, textAlign: 'center' },
   subTabTextActive: { color: '#FFFFFF' },
-  mapToggleBtn: { minHeight: 34, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderWidth: 1, borderColor: C.border, backgroundColor: '#FFFFFF', borderRadius: 999, paddingHorizontal: 10 },
+  mapToggleBtn: { minHeight: 32, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderWidth: 1, borderColor: C.border, backgroundColor: '#FFFFFF', borderRadius: 999, paddingHorizontal: 10 },
   mapToggleBtnActive: { backgroundColor: C.black, borderColor: C.black },
   mapToggleText: { fontSize: 10.5, fontWeight: '800', color: C.black },
   mapToggleTextActive: { color: '#FFFFFF' },
-  locationCard: { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 16, marginTop: 12, backgroundColor: C.card, borderRadius: 16, borderWidth: 1, borderColor: C.border, padding: 14 },
-  locationTitle: { fontSize: 12, fontWeight: '800', color: C.black },
-  locationText: { fontSize: 11, color: C.gray, lineHeight: 16, marginTop: 3 },
-  locationBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.black, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 8 },
-  locationBtnText: { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
   mapCard: { height: 300, marginHorizontal: 16, marginTop: 12, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: C.border, backgroundColor: C.card },
   map: { flex: 1 },
   mapLocateBtn: { position: 'absolute', right: 12, top: 12, width: 38, height: 38, borderRadius: 19, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },

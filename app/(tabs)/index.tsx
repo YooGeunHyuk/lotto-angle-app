@@ -71,14 +71,14 @@ export default function App() {
             <SumGeneratorContent setParentScrollEnabled={setScrollEnabled} />
           </View>
           <View style={{ width }}><MyTicketsContent draws={draws} /></View>
-          <View style={{ width }}><LuckyMapContent /></View>
+          <View style={{ width }}><LuckyMapContent isActive={page === 4} /></View>
           <View style={{ width }}><StatsContent draws={draws} /></View>
         </ScrollView>
 
         <View style={s.tabBar}>
           {TABS.map((tab, i) => (
             <TouchableOpacity key={tab.label} style={s.tab} onPress={() => goTo(i)}>
-              <Ionicons name={tab.icon as any} size={22} color={page === i ? '#1A1A1A' : '#BBBBBB'} />
+              <Ionicons name={tab.icon as any} size={19} color={page === i ? '#1A1A1A' : '#BBBBBB'} />
               <Text style={[s.tabText, page === i && s.tabActive]}>{tab.label}</Text>
               {page === i && <View style={s.indicator} />}
             </TouchableOpacity>
