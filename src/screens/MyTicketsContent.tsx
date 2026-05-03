@@ -242,7 +242,7 @@ const s = StyleSheet.create({
   numRow: { flex: 1, flexDirection: 'row', gap: 5 },
   numInput: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 10, padding: 10, color: C.black, fontSize: 14, textAlign: 'center', borderWidth: 1, borderColor: C.border },
   btnRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
-  btn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
+  btn: { flex: 1, paddingVertical: 12, borderRadius: 999, alignItems: 'center' },
   btnPrimary: { backgroundColor: C.black },
   btnPrimaryText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
   btnSecondary: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.border },

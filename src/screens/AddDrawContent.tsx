@@ -193,7 +193,7 @@ const s = StyleSheet.create({
   input: { backgroundColor: '#FFFFFF', borderRadius: 10, padding: 11, color: C.black, fontSize: 14, borderWidth: 1, borderColor: C.border },
   numRow: { flexDirection: 'row', gap: 6, marginBottom: 4 },
   numInput: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 10, padding: 10, color: C.black, fontSize: 14, textAlign: 'center', borderWidth: 1, borderColor: C.border },
-  saveBtn: { backgroundColor: C.black, borderRadius: 12, padding: 13, marginTop: 12, alignItems: 'center' },
+  saveBtn: { backgroundColor: C.black, borderRadius: 999, padding: 13, marginTop: 12, alignItems: 'center' },
   saveBtnText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
   drawRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: C.border },
   drawNo: { fontSize: 11, color: C.gray, marginBottom: 6 },

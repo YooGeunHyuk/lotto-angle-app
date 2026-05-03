@@ -102,7 +102,7 @@ const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.bg },
   content: { paddingBottom: 8 },
   modeRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginTop: 10 },
-  modeBtn: { flex: 1, minHeight: 44, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
+  modeBtn: { flex: 1, minHeight: 44, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, borderRadius: 999, paddingVertical: 10, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
   modeBtnActive: { backgroundColor: C.black, borderColor: C.black },
   modeText: { fontSize: 12, fontWeight: '800', color: C.gray, textAlign: 'center' },
   modeTextActive: { color: '#FFFFFF' },

@@ -180,7 +180,7 @@ const s = StyleSheet.create({
   cardTitle: { fontSize: 13, fontWeight: '700', color: C.black },
   label: { fontSize: 11, color: C.gray, marginBottom: 8 },
   
-  btn: { width: '100%', paddingVertical: 12, borderRadius: 12, alignItems: 'center', backgroundColor: C.black },
+  btn: { width: '100%', paddingVertical: 12, borderRadius: 999, alignItems: 'center', backgroundColor: C.black },
   btnPrimaryText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
   btnPrimary: {}, // 스타일 객체 유지
 

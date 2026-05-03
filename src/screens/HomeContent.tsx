@@ -128,7 +128,7 @@ const s = StyleSheet.create({
     position: 'relative',
     alignItems: 'flex-end',
     justifyContent: 'flex-end',
-    height: 50,
+    height: 53,
   },
   infoButton: {
     position: 'absolute',
@@ -180,7 +180,7 @@ const s = StyleSheet.create({
   },
   infoText: { fontSize: 11, lineHeight: 17, color: C.gray, textAlign: 'center' },
   infoEmail: { fontSize: 11, lineHeight: 17, color: C.black, marginTop: 4, textAlign: 'center' },
-  btn: { backgroundColor: C.black, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
+  btn: { backgroundColor: C.black, paddingHorizontal: 18, paddingVertical: 9, borderRadius: 999 },
   btnText: { fontSize: 13, fontWeight: '600', color: '#FFFFFF' },
   card: { marginHorizontal: 16, marginTop: 12, backgroundColor: C.card, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: C.border },
   latestCard: { marginTop: 10 },
