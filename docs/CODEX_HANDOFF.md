@@ -189,6 +189,9 @@ If a fresh thread continues icon work, verify that this file still exists before
 
 - Google Play submission path was already set up previously.
 - User found Google Play release flow more complex than expected.
+- Current closed-test update AAB: `dist/lottoanalyzer-android-v4.aab`
+- Current closed-test AAB versionCode: `4`
+- Closed-test upload guide/release notes: `docs/GOOGLE_PLAY_CLOSED_TEST.md`
 - Do not spend time re-explaining the full console unless the user asks.
 
 ### App Store

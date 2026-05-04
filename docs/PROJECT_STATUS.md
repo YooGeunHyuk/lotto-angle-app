@@ -204,6 +204,20 @@ No apps connected. Sending "reload" to all React Native apps failed.
 
 이 경우 폰에서 Expo Go로 다시 접속하면 최신 번들을 받을 수 있다.
 
+## Google Play 비공개 테스트
+
+현재 Google Play 비공개 테스트 업데이트용 Android AAB가 생성되어 있다.
+
+- 파일: `dist/lottoanalyzer-android-v4.aab`
+- versionCode: `4`
+- versionName: `1.0.0`
+- EAS Build ID: `994d0b13-8862-4708-96d7-9b42505d0d85`
+- EAS artifact: `https://expo.dev/artifacts/eas/jVXnTNsTaD1BHuviyaQqk8.aab`
+
+업로드 절차와 출시 노트는 아래 문서를 참고한다.
+
+- `docs/GOOGLE_PLAY_CLOSED_TEST.md`
+
 ## Expo Go 실행 명령
 
 프로젝트 루트에서 실행:
