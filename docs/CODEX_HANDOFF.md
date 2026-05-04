@@ -102,7 +102,10 @@ Current implementation:
 - Result matching derives status from current draw history:
   - no draw result => `추첨전`
   - draw exists => rank/match result shown
-- QR button is intentionally a placeholder until the user provides a real Korean lotto QR URL/text sample.
+- QR button now opens an Expo Camera QR scanner.
+- Known Donghaeng `winQr` URL-style payloads are parsed into draw number and A-E games where possible.
+- If parsing fails, the scanner displays the raw QR text so a real sample can be used to finalize the parser.
+- A real Korean lotto QR URL/text sample is still needed for final parser verification.
 
 ## Lucky Store Map
 

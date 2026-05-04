@@ -1,9 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
+import { BarcodeScanningResult, CameraView, useCameraPermissions } from 'expo-camera';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Linking, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AdBanner from '../components/AdBanner';
 import HeaderInfo from '../components/HeaderInfo';
 import ScreenHeader from '../components/ScreenHeader';
+import { parseLottoQr } from '../data/lottoQr';
 import { buildTicket, deleteTicket, evaluateTicket, EvaluatedTicket, getSavedTickets, SavedTicket, saveTicket } from '../data/ticketStore';
 import { Draw } from '../data/lottoData';
 import { Ball } from './HomeContent';
@@ -38,6 +40,10 @@ export default function MyTicketsContent({ draws }: { draws: Draw[] }) {
   const [tickets, setTickets] = useState<SavedTicket[]>([]);
   const [drawNo, setDrawNo] = useState(String(latest ? latest.drwNo + 1 : 1));
   const [games, setGames] = useState<string[][]>(() => EMPTY_GAMES.map(game => [...game]));
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scanLocked, setScanLocked] = useState(false);
+  const [scanRawText, setScanRawText] = useState('');
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const refs = useRef<(TextInput | null)[]>([]);
 
   const evaluatedTickets = useMemo(
@@ -101,6 +107,50 @@ export default function MyTicketsContent({ draws }: { draws: Draw[] }) {
     await loadTickets();
   }
 
+  async function openScanner() {
+    setScanRawText('');
+    setScanLocked(false);
+
+    const permission = cameraPermission?.granted ? cameraPermission : await requestCameraPermission();
+    if (permission.granted) {
+      setScannerOpen(true);
+      return;
+    }
+
+    Alert.alert(
+      '카메라 권한 필요',
+      '로또 QR을 스캔하려면 카메라 권한을 허용해야 합니다.',
+      [
+        { text: '취소', style: 'cancel' },
+        ...(permission.canAskAgain ? [{ text: '다시 요청', onPress: openScanner }] : [{ text: '설정 열기', onPress: () => Linking.openSettings() }]),
+      ],
+    );
+  }
+
+  function closeScanner() {
+    setScannerOpen(false);
+    setScanLocked(false);
+  }
+
+  async function handleQrScanned(result: BarcodeScanningResult) {
+    if (scanLocked) return;
+    setScanLocked(true);
+
+    const rawText = result.raw ?? result.data ?? '';
+    const parsed = parseLottoQr(rawText);
+    if (!parsed) {
+      setScanRawText(rawText);
+      return;
+    }
+
+    const ticket = buildTicket(parsed.drawNo, parsed.games, 'qr', parsed.rawText);
+    await saveTicket(ticket);
+    await loadTickets();
+    setScannerOpen(false);
+    setScanRawText('');
+    Alert.alert('QR 등록 완료', `${parsed.drawNo}회 ${parsed.games.length}게임을 저장했습니다.`);
+  }
+
   return (
     <View style={s.safe}>
       <ScrollView
@@ -113,7 +163,7 @@ export default function MyTicketsContent({ draws }: { draws: Draw[] }) {
         <View style={s.card}>
           <View style={s.cardHead}>
             <Text style={s.cardTitle}>수동 등록</Text>
-            <TouchableOpacity style={s.qrButton} activeOpacity={0.75} onPress={() => Alert.alert('준비 중', '실제 QR 샘플을 확인한 뒤 스캐너를 연결할 예정입니다.')}>
+            <TouchableOpacity style={s.qrButton} activeOpacity={0.75} onPress={openScanner}>
               <Ionicons name="qr-code-outline" size={16} color={C.black} />
               <Text style={s.qrButtonText}>QR</Text>
             </TouchableOpacity>
@@ -225,6 +275,49 @@ export default function MyTicketsContent({ draws }: { draws: Draw[] }) {
         <AdBanner />
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      <Modal visible={scannerOpen} animationType="slide" onRequestClose={closeScanner}>
+        <View style={s.scannerRoot}>
+          <CameraView
+            style={s.camera}
+            facing="back"
+            barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+            onBarcodeScanned={scanLocked ? undefined : handleQrScanned}
+          />
+          <View style={s.scannerOverlay} pointerEvents="box-none">
+            <View style={s.scannerTop}>
+              <TouchableOpacity style={s.scannerIconBtn} onPress={closeScanner} activeOpacity={0.78}>
+                <Ionicons name="close" size={22} color="#FFFFFF" />
+              </TouchableOpacity>
+              <Text style={s.scannerTitle}>로또 QR 스캔</Text>
+              <TouchableOpacity style={s.scannerIconBtn} onPress={() => setScanLocked(false)} activeOpacity={0.78}>
+                <Ionicons name="refresh" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={s.scanFrame}>
+              <View style={[s.corner, s.cornerTopLeft]} />
+              <View style={[s.corner, s.cornerTopRight]} />
+              <View style={[s.corner, s.cornerBottomLeft]} />
+              <View style={[s.corner, s.cornerBottomRight]} />
+            </View>
+
+            <View style={s.scannerBottom}>
+              {scanRawText ? (
+                <View style={s.scanResultCard}>
+                  <Text style={s.scanResultTitle}>QR은 읽었지만 번호 형식을 확인하지 못했습니다</Text>
+                  <Text selectable style={s.scanRawText} numberOfLines={3}>{scanRawText}</Text>
+                  <TouchableOpacity style={s.scanRetryBtn} onPress={() => { setScanRawText(''); setScanLocked(false); }} activeOpacity={0.78}>
+                    <Text style={s.scanRetryText}>다시 스캔</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <Text style={s.scannerHelp}>종이 로또 하단 QR을 사각형 안에 맞춰주세요</Text>
+              )}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -267,4 +360,23 @@ const s = StyleSheet.create({
   matchWrap: { borderColor: C.win },
   bonusWrap: { borderColor: C.pending },
   rank: { fontSize: 11, fontWeight: '700', color: C.gray, width: 38, textAlign: 'right' },
+  scannerRoot: { flex: 1, backgroundColor: '#000000' },
+  camera: { flex: 1 },
+  scannerOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'space-between' },
+  scannerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingTop: 54 },
+  scannerIconBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
+  scannerTitle: { fontSize: 16, fontWeight: '800', color: '#FFFFFF' },
+  scanFrame: { alignSelf: 'center', width: 248, height: 248, marginTop: 76 },
+  corner: { position: 'absolute', width: 38, height: 38, borderColor: '#FFFFFF' },
+  cornerTopLeft: { left: 0, top: 0, borderLeftWidth: 4, borderTopWidth: 4, borderTopLeftRadius: 18 },
+  cornerTopRight: { right: 0, top: 0, borderRightWidth: 4, borderTopWidth: 4, borderTopRightRadius: 18 },
+  cornerBottomLeft: { left: 0, bottom: 0, borderLeftWidth: 4, borderBottomWidth: 4, borderBottomLeftRadius: 18 },
+  cornerBottomRight: { right: 0, bottom: 0, borderRightWidth: 4, borderBottomWidth: 4, borderBottomRightRadius: 18 },
+  scannerBottom: { paddingHorizontal: 18, paddingBottom: 48 },
+  scannerHelp: { alignSelf: 'center', overflow: 'hidden', backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 10, fontSize: 12, fontWeight: '700', color: '#FFFFFF', textAlign: 'center' },
+  scanResultCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14 },
+  scanResultTitle: { fontSize: 13, fontWeight: '800', color: C.black },
+  scanRawText: { marginTop: 8, fontSize: 11, lineHeight: 16, color: C.gray },
+  scanRetryBtn: { marginTop: 12, alignItems: 'center', backgroundColor: C.black, borderRadius: 999, paddingVertical: 11 },
+  scanRetryText: { fontSize: 13, fontWeight: '800', color: '#FFFFFF' },
 });

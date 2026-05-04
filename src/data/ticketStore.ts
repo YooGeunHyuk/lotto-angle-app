@@ -17,6 +17,7 @@ export interface SavedTicket {
   drawNo: number;
   source: TicketSource;
   createdAt: string;
+  rawText?: string;
   games: TicketGame[];
 }
 
@@ -66,6 +67,7 @@ function normalizeTicket(raw: unknown): SavedTicket | null {
     drawNo,
     source,
     createdAt: typeof item.createdAt === 'string' ? item.createdAt : new Date().toISOString(),
+    rawText: typeof item.rawText === 'string' ? item.rawText : undefined,
     games,
   };
 }
@@ -78,12 +80,13 @@ function normalizeTickets(raw: unknown): SavedTicket[] {
     .sort((a, b) => b.drawNo - a.drawNo || b.createdAt.localeCompare(a.createdAt));
 }
 
-export function buildTicket(drawNo: number, games: number[][], source: TicketSource = 'manual'): SavedTicket {
+export function buildTicket(drawNo: number, games: number[][], source: TicketSource = 'manual', rawText?: string): SavedTicket {
   return {
     id: createId('ticket'),
     drawNo,
     source,
     createdAt: new Date().toISOString(),
+    rawText,
     games: games
       .map(numbers => normalizeGame({ numbers }))
       .filter((game): game is TicketGame => Boolean(game)),

@@ -14,7 +14,8 @@
       "infoPlist": {
         "UIViewControllerBasedStatusBarAppearance": false,
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "내 주변 로또 명당을 보여주기 위해 현재 위치를 사용합니다."
+        "NSLocationWhenInUseUsageDescription": "내 주변 로또 명당을 보여주기 위해 현재 위치를 사용합니다.",
+        "NSCameraUsageDescription": "구매한 로또 QR을 스캔해 내 번호에 등록하기 위해 카메라를 사용합니다."
       }
     },
     "android": {
@@ -58,6 +59,12 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "내 주변 로또 명당을 보여주기 위해 현재 위치를 사용합니다."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "구매한 로또 QR을 스캔해 내 번호에 등록하기 위해 카메라를 사용합니다."
         }
       ]
     ],
