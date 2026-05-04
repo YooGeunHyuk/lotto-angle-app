@@ -120,6 +120,8 @@ Current implementation:
   - `전국 명당`: list-only national ranking sorted by first-prize wins, with second-prize counts shown.
 - If the official retailer endpoint is unavailable in native mode, `판매점` falls back to nearby winning-store data.
 - Data comes from Donghaeng Lottery's winning-store API and is bundled in `data/lucky_stores.json`.
+- Lucky-store data can be refreshed with `npm run update:lucky-stores`.
+- `.github/workflows/update-lucky-stores.yml` runs after the weekly draw window and commits `data/lucky_stores.json` when a new latest round is available.
 - Current bundled dataset:
   - Lotto 6/45
   - Offline stores only

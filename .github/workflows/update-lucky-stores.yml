@@ -1,0 +1,37 @@
+name: Update lucky store data
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Run after the weekly draw data update window in Korea.
+    - cron: '0 14 * * 6'
+
+permissions:
+  contents: write
+
+jobs:
+  update-lucky-store-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Fetch latest lucky store data
+        run: npm run update:lucky-stores
+
+      - name: Commit updated lucky store database
+        run: |
+          if git diff --quiet -- data/lucky_stores.json; then
+            echo "No lucky store data changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/lucky_stores.json
+          git commit -m "Update lucky store database"
+          git push

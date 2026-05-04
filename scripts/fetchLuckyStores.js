@@ -76,6 +76,13 @@ function applyWin(store, item, round) {
 async function main() {
   const latestRound = await getLatestRound();
   const startRound = Math.max(1, latestRound - LATEST_ROUNDS_TO_SCAN + 1);
+  const existingPayload = fs.existsSync(OUTPUT_PATH) ? JSON.parse(fs.readFileSync(OUTPUT_PATH, 'utf8')) : null;
+
+  if (existingPayload?.latestRound === latestRound && process.env.FORCE_LUCKY_STORES !== '1') {
+    console.log(`Lucky store data is already current at ${latestRound}회.`);
+    return;
+  }
+
   const byStore = new Map();
 
   console.log(`Fetching lucky stores from ${startRound} to ${latestRound}`);

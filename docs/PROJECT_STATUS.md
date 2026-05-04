@@ -117,6 +117,8 @@
 
 판매점 모드는 현재 위치의 행정구역을 추정한 뒤 동행복권 판매점 API에서 주변 판매점을 조회한다. 조회가 불안정할 경우 가까운 당첨 이력 판매점으로 fallback한다.
 
+명당 데이터도 GitHub Actions 자동 갱신 대상으로 추가했다. 매주 추첨 이후 `npm run update:lucky-stores`가 실행되고, 새로운 회차가 확인되면 `data/lucky_stores.json`을 갱신해 커밋한다.
+
 ### 지도 SDK 메모
 
 - 현재는 `react-native-maps` 사용
@@ -168,6 +170,13 @@
 - 수집 스크립트: `scripts/fetchLottoData.js`
 - 자동화 워크플로: `.github/workflows/update-lotto-data.yml`
 - 실행 명령: `npm run update:lotto`
+
+명당 데이터 자동화:
+
+- DB 파일: `data/lucky_stores.json`
+- 수집 스크립트: `scripts/fetchLuckyStores.js`
+- 자동화 워크플로: `.github/workflows/update-lucky-stores.yml`
+- 실행 명령: `npm run update:lucky-stores`
 
 ### 주의할 점
 
@@ -242,11 +251,10 @@ npx expo start --port 8081 --tunnel
 
 1. 실제 로또 QR 샘플 기반 파서 보정
 2. QR 스캔 실기기 QA
-3. 명당 데이터도 GitHub Actions로 자동 갱신
-4. 명당 지도에서 지역별 필터 고도화
-5. 전국 명당 리스트 정렬/검색 기능 추가
-6. 앱 아이콘/스플래시 실제 빌드 검증
-7. App Store / Google Play 제출용 메타데이터 정리
+3. 명당 지도에서 지역별 필터 고도화
+4. 전국 명당 리스트 정렬/검색 기능 추가
+5. 앱 아이콘/스플래시 실제 빌드 검증
+6. App Store / Google Play 제출용 메타데이터 정리
 
 ### 릴리즈 전 체크
 

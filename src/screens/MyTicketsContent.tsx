@@ -25,6 +25,14 @@ const C = {
 const GAME_LABELS = ['A', 'B', 'C', 'D', 'E'];
 const EMPTY_GAMES = GAME_LABELS.map(() => ['', '', '', '', '', '']);
 
+function formatSavedDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}.${month}.${day}`;
+}
+
 function getStatusLabel(ticket: EvaluatedTicket): string {
   if (ticket.status === 'pending') return '추첨전';
   return ticket.games.some(game => game.rank !== '낙첨') ? '당첨 확인' : '낙첨';
@@ -162,10 +170,13 @@ export default function MyTicketsContent({ draws }: { draws: Draw[] }) {
 
         <View style={s.card}>
           <View style={s.cardHead}>
-            <Text style={s.cardTitle}>수동 등록</Text>
+            <View>
+              <Text style={s.cardTitle}>구매 번호 등록</Text>
+              <Text style={s.cardSub}>다음 회차 {latest ? latest.drwNo + 1 : '-'}회</Text>
+            </View>
             <TouchableOpacity style={s.qrButton} activeOpacity={0.75} onPress={openScanner}>
               <Ionicons name="qr-code-outline" size={16} color={C.black} />
-              <Text style={s.qrButtonText}>QR</Text>
+              <Text style={s.qrButtonText}>QR 스캔</Text>
             </TouchableOpacity>
           </View>
 
@@ -214,6 +225,11 @@ export default function MyTicketsContent({ draws }: { draws: Draw[] }) {
           </View>
         </View>
 
+        <View style={s.listHead}>
+          <Text style={s.sectionTitle}>저장한 번호</Text>
+          <Text style={s.dim}>{evaluatedTickets.length}장</Text>
+        </View>
+
         {evaluatedTickets.length === 0 ? (
           <View style={s.empty}>
             <Ionicons name="ticket-outline" size={26} color={C.dim} />
@@ -225,7 +241,13 @@ export default function MyTicketsContent({ draws }: { draws: Draw[] }) {
               <View style={s.ticketHead}>
                 <View>
                   <Text style={s.cardTitle}>{ticket.drawNo}회</Text>
-                  <Text style={s.ticketSub}>{ticket.source === 'qr' ? 'QR 등록' : '수동 등록'}</Text>
+                  <View style={s.ticketMetaRow}>
+                    <View style={s.sourceChip}>
+                      <Ionicons name={ticket.source === 'qr' ? 'qr-code-outline' : 'create-outline'} size={11} color={C.gray} />
+                      <Text style={s.sourceChipText}>{ticket.source === 'qr' ? 'QR' : '수동'}</Text>
+                    </View>
+                    <Text style={s.ticketSub}>{ticket.games.length}게임 · {formatSavedDate(ticket.createdAt)}</Text>
+                  </View>
                 </View>
                 <View style={s.ticketActions}>
                   <View style={[s.statusBadge, { borderColor: statusColor(ticket) }]}>
@@ -328,6 +350,7 @@ const s = StyleSheet.create({
   card: { marginHorizontal: 16, marginTop: 12, backgroundColor: C.card, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: C.border },
   cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   cardTitle: { fontSize: 13, fontWeight: '700', color: C.black },
+  cardSub: { fontSize: 10.5, color: C.gray, marginTop: 3 },
   label: { fontSize: 11, color: C.gray, marginTop: 8, marginBottom: 6 },
   drawInput: { width: 90, backgroundColor: '#FFFFFF', borderRadius: 10, padding: 10, color: C.black, fontSize: 14, textAlign: 'center', borderWidth: 1, borderColor: C.border },
   manualGameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 7 },
@@ -340,11 +363,17 @@ const s = StyleSheet.create({
   btnPrimaryText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
   btnSecondary: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.border },
   btnSecondaryText: { fontSize: 14, fontWeight: '600', color: C.black },
-  qrButton: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.border, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 6 },
+  qrButton: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.border, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
   qrButtonText: { fontSize: 12, fontWeight: '700', color: C.black },
+  listHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 16, marginTop: 16, marginBottom: 2 },
+  sectionTitle: { fontSize: 13, fontWeight: '800', color: C.black },
+  dim: { fontSize: 10, color: C.gray },
   empty: { marginTop: 40, alignItems: 'center', gap: 8 },
   emptyText: { fontSize: 12, color: C.gray },
   ticketHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  ticketMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
+  sourceChip: { flexDirection: 'row', alignItems: 'center', gap: 3, borderWidth: 1, borderColor: C.border, backgroundColor: '#FFFFFF', borderRadius: 999, paddingHorizontal: 6, paddingVertical: 3 },
+  sourceChipText: { fontSize: 10, fontWeight: '800', color: C.gray },
   ticketSub: { fontSize: 11, color: C.gray, marginTop: 3 },
   ticketActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   statusBadge: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4 },
