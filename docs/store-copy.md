@@ -1,5 +1,9 @@
 # 로또될각 스토어 문구
 
+최신 App Store 제출용 상세 정리는 아래 문서를 우선 참고한다.
+
+- `docs/APP_STORE_SUBMISSION.md`
+
 ## 앱 이름
 
 로또될각
