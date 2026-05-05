@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AdBanner from '../components/AdBanner';
 import ScreenHeader from '../components/ScreenHeader';
 import { Draw } from '../data/lottoData';
+import { saveRecommendedTicket } from '../data/recommendedTicket';
 import { generateFiveSets } from '../engine/predictor';
 import { ballBg, ballText } from '../utils/colors';
 
@@ -17,12 +18,21 @@ export function Ball({ num, size = 40 }: { num: number; size?: number }) {
   );
 }
 
-export default function HomeContent({ draws }: { draws: Draw[] }) {
+export default function HomeContent({
+  draws,
+  onTicketSaved,
+  onOpenTickets,
+}: {
+  draws: Draw[];
+  onTicketSaved?: () => void;
+  onOpenTickets?: () => void;
+}) {
   const latest = draws[draws.length - 1];
   const nextDrwNo = latest.drwNo + 1;
   const initialAnalysis = generateFiveSets(draws);
   const [result, setResult] = useState<ReturnType<typeof generateFiveSets> | null>(null);
   const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
 
@@ -30,6 +40,28 @@ export default function HomeContent({ draws }: { draws: Draw[] }) {
     setBusy(true);
     setTimeout(() => { setResult(generateFiveSets(draws)); setBusy(false); }, 200);
   }, [draws]);
+
+  const saveRecommendation = useCallback(async () => {
+    if (!result || saving) return;
+
+    try {
+      setSaving(true);
+      const count = await saveRecommendedTicket(nextDrwNo, result.sets);
+      onTicketSaved?.();
+      Alert.alert(
+        '저장 완료',
+        `${nextDrwNo}회 ${count}게임을 내 번호에 저장했습니다.`,
+        [
+          { text: '확인' },
+          { text: '내 번호 보기', onPress: onOpenTickets },
+        ],
+      );
+    } catch {
+      Alert.alert('오류', '추천 번호를 저장하지 못했습니다. 다시 시도해주세요.');
+    } finally {
+      setSaving(false);
+    }
+  }, [nextDrwNo, onOpenTickets, onTicketSaved, result, saving]);
 
   return (
     <View style={s.safe}>
@@ -78,8 +110,14 @@ export default function HomeContent({ draws }: { draws: Draw[] }) {
         {result && (
           <View style={s.card}>
             <View style={s.cardHead}>
-              <Text style={s.cardTitle}>{nextDrwNo}회차 추천 · 5세트</Text>
-              <Text style={s.dim}>합계 {result.sumRange.min}–{result.sumRange.max}</Text>
+              <View>
+                <Text style={s.cardTitle}>{nextDrwNo}회차 추천 · 5세트</Text>
+                <Text style={s.dim}>합계 {result.sumRange.min}–{result.sumRange.max}</Text>
+              </View>
+              <TouchableOpacity style={[s.savePickButton, saving && { opacity: 0.45 }]} onPress={saveRecommendation} disabled={saving} activeOpacity={0.75}>
+                <Ionicons name="ticket-outline" size={14} color="#FFFFFF" />
+                <Text style={s.savePickText}>{saving ? '저장 중' : '내 번호 저장'}</Text>
+              </TouchableOpacity>
             </View>
             {result.sets.map(set => (
               <View key={set.setNo} style={s.setRow}>
@@ -182,6 +220,8 @@ const s = StyleSheet.create({
   infoEmail: { fontSize: 11, lineHeight: 17, color: C.black, marginTop: 4, textAlign: 'center' },
   btn: { backgroundColor: C.black, paddingHorizontal: 18, paddingVertical: 9, borderRadius: 999 },
   btnText: { fontSize: 13, fontWeight: '600', color: '#FFFFFF' },
+  savePickButton: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.black, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
+  savePickText: { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
   card: { marginHorizontal: 16, marginTop: 12, backgroundColor: C.card, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: C.border },
   latestCard: { marginTop: 10 },
   cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },

@@ -5,17 +5,27 @@ import AdBanner from '../components/AdBanner';
 import HeaderInfo from '../components/HeaderInfo';
 import ScreenHeader from '../components/ScreenHeader';
 import { Draw } from '../data/lottoData';
+import { saveRecommendedTicket } from '../data/recommendedTicket';
 import { generateFixedSets } from '../engine/predictor';
 import { Ball } from './HomeContent';
 
 const C = { bg: '#FFFFFF', card: '#F7F7F7', border: '#EEEEEE', black: '#1A1A1A', gray: '#999999', dim: '#CCCCCC', logo: '#D94F2A' };
 
-export default function FixedPickContent({ draws }: { draws: Draw[] }) {
+export default function FixedPickContent({
+  draws,
+  onTicketSaved,
+  onOpenTickets,
+}: {
+  draws: Draw[];
+  onTicketSaved?: () => void;
+  onOpenTickets?: () => void;
+}) {
   const latest = draws[draws.length - 1];
   const nextDrwNo = latest ? latest.drwNo + 1 : 1;
   const [fixed, setFixed] = useState(['', '', '', '', '']);
   const [result, setResult] = useState<ReturnType<typeof generateFixedSets> | null>(null);
   const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
   const refs = useRef<(TextInput | null)[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
   const [analysisReasons, setAnalysisReasons] = useState<string[]>([]);
@@ -51,6 +61,28 @@ export default function FixedPickContent({ draws }: { draws: Draw[] }) {
     const initial = generateFixedSets(draws, [], 5);
     setAnalysisReasons(initial.reasons);
     setIsExpanded(false);
+  }
+
+  async function saveRecommendation() {
+    if (!result || saving) return;
+
+    try {
+      setSaving(true);
+      const count = await saveRecommendedTicket(nextDrwNo, result.sets);
+      onTicketSaved?.();
+      Alert.alert(
+        '저장 완료',
+        `${nextDrwNo}회 ${count}게임을 내 번호에 저장했습니다.`,
+        [
+          { text: '확인' },
+          { text: '내 번호 보기', onPress: onOpenTickets },
+        ],
+      );
+    } catch {
+      Alert.alert('오류', '추천 번호를 저장하지 못했습니다. 다시 시도해주세요.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   const parsed = fixed.map(v => parseInt(v)).filter(n => !isNaN(n) && n >= 1 && n <= 45);
@@ -90,8 +122,14 @@ export default function FixedPickContent({ draws }: { draws: Draw[] }) {
         {result && result.sets.length > 0 && (
           <View style={s.card}>
             <View style={s.cardHead}>
-              <Text style={s.cardTitle}>{nextDrwNo}회차 추천 · 5세트</Text>
-              <Text style={s.dim}>합계 {result.sumRange.min}–{result.sumRange.max}</Text>
+              <View>
+                <Text style={s.cardTitle}>{nextDrwNo}회차 추천 · 5세트</Text>
+                <Text style={s.dim}>합계 {result.sumRange.min}–{result.sumRange.max}</Text>
+              </View>
+              <TouchableOpacity style={[s.savePickButton, saving && { opacity: 0.45 }]} onPress={saveRecommendation} disabled={saving} activeOpacity={0.75}>
+                <Ionicons name="ticket-outline" size={14} color="#FFFFFF" />
+                <Text style={s.savePickText}>{saving ? '저장 중' : '내 번호 저장'}</Text>
+              </TouchableOpacity>
             </View>
             {result.sets.map(set => (
               <View key={set.setNo} style={s.setRow}>
@@ -146,6 +184,8 @@ const s = StyleSheet.create({
   btnPrimaryText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
   btnSecondary: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.border },
   btnSecondaryText: { fontSize: 14, fontWeight: '600', color: C.black },
+  savePickButton: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.black, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
+  savePickText: { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
   setRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderTopWidth: 1, borderTopColor: C.border, gap: 6 },
   setNo: { fontSize: 11, fontWeight: '700', color: C.dim, width: 14 },
   ballsRow: { flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

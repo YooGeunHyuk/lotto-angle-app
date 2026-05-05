@@ -43,7 +43,7 @@ function statusColor(ticket: EvaluatedTicket): string {
   return ticket.games.some(game => game.rank !== '낙첨') ? C.win : C.gray;
 }
 
-export default function MyTicketsContent({ draws }: { draws: Draw[] }) {
+export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Draw[]; refreshKey?: number }) {
   const latest = draws[draws.length - 1];
   const [tickets, setTickets] = useState<SavedTicket[]>([]);
   const [drawNo, setDrawNo] = useState(String(latest ? latest.drwNo + 1 : 1));
@@ -66,7 +66,7 @@ export default function MyTicketsContent({ draws }: { draws: Draw[] }) {
 
   useEffect(() => {
     loadTickets();
-  }, [loadTickets]);
+  }, [loadTickets, refreshKey]);
 
   function updateNum(gameIndex: number, numberIndex: number, value: string) {
     const next = games.map(game => [...game]);

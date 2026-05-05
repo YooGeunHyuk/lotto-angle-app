@@ -1,10 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import MultiSlider from '@ptomasroos/react-native-multi-slider';
 import React, { useState } from 'react';
-import { Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AdBanner from '../components/AdBanner';
 import HeaderInfo from '../components/HeaderInfo';
 import ScreenHeader from '../components/ScreenHeader';
+import { Draw } from '../data/lottoData';
+import { saveRecommendedTicket } from '../data/recommendedTicket';
 import { Ball } from './HomeContent';
 
 const { width } = Dimensions.get('window');
@@ -19,7 +21,10 @@ const C = {
 };
 
 interface Props {
+  draws: Draw[];
   setParentScrollEnabled: (enabled: boolean) => void;
+  onTicketSaved?: () => void;
+  onOpenTickets?: () => void;
 }
 
 interface GeneratedSet {
@@ -28,10 +33,13 @@ interface GeneratedSet {
   sum: number;
 }
 
-export default function SumGeneratorContent({ setParentScrollEnabled }: Props) {
+export default function SumGeneratorContent({ draws, setParentScrollEnabled, onTicketSaved, onOpenTickets }: Props) {
+  const latest = draws[draws.length - 1];
+  const nextDrwNo = latest ? latest.drwNo + 1 : 1;
   const [values, setValues] = useState([121, 180]);
   const [result, setResult] = useState<GeneratedSet[] | null>(null);
   const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
   // 🌟 분석 기준 데이터 유지
@@ -68,6 +76,28 @@ export default function SumGeneratorContent({ setParentScrollEnabled }: Props) {
       setBusy(false);
     }, 200);
   };
+
+  async function saveRecommendation() {
+    if (!result || saving) return;
+
+    try {
+      setSaving(true);
+      const count = await saveRecommendedTicket(nextDrwNo, result);
+      onTicketSaved?.();
+      Alert.alert(
+        '저장 완료',
+        `${nextDrwNo}회 ${count}게임을 내 번호에 저장했습니다.`,
+        [
+          { text: '확인' },
+          { text: '내 번호 보기', onPress: onOpenTickets },
+        ],
+      );
+    } catch {
+      Alert.alert('오류', '추천 번호를 저장하지 못했습니다. 다시 시도해주세요.');
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const ticks = [21, 50, 100, 150, 200, 255];
 
@@ -117,8 +147,14 @@ export default function SumGeneratorContent({ setParentScrollEnabled }: Props) {
         {result && (
           <View style={s.card}>
             <View style={s.cardHead}>
-              <Text style={s.cardTitle}>추천 결과 · 5세트</Text>
-              <Text style={s.dim}>합계 {values[0]}–{values[1]}</Text>
+              <View>
+                <Text style={s.cardTitle}>{nextDrwNo}회차 추천 · 5세트</Text>
+                <Text style={s.dim}>합계 {values[0]}–{values[1]}</Text>
+              </View>
+              <TouchableOpacity style={[s.savePickButton, saving && { opacity: 0.45 }]} onPress={saveRecommendation} disabled={saving} activeOpacity={0.75}>
+                <Ionicons name="ticket-outline" size={14} color="#FFFFFF" />
+                <Text style={s.savePickText}>{saving ? '저장 중' : '내 번호 저장'}</Text>
+              </TouchableOpacity>
             </View>
             {result.map(set => (
               <View key={set.setNo} style={s.setRow}>
@@ -183,6 +219,8 @@ const s = StyleSheet.create({
   btn: { width: '100%', paddingVertical: 12, borderRadius: 999, alignItems: 'center', backgroundColor: C.black },
   btnPrimaryText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
   btnPrimary: {}, // 스타일 객체 유지
+  savePickButton: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.black, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
+  savePickText: { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
 
   setRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderTopWidth: 1, borderTopColor: C.border, gap: 6 },
   setNoText: { fontSize: 11, fontWeight: '700', color: C.dim, width: 14 },
