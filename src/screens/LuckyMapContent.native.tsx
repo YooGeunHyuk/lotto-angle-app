@@ -12,8 +12,6 @@ const C = { bg: '#FFFFFF', card: '#F7F7F7', border: '#EEEEEE', black: '#1A1A1A',
 const KOREA_REGION = { latitude: 36.4203004, longitude: 128.31796, latitudeDelta: 5.2, longitudeDelta: 4.2 };
 const MARKER_LIMIT = 650;
 const API_BASE = 'https://www.dhlottery.co.kr';
-const NEARBY_RETAIL_RADIUS_KM = 5;
-const NEARBY_RETAIL_FALLBACK_LIMIT = 20;
 
 type MainMode = 'local' | 'national';
 type LocalView = Exclude<LuckyStoreMode, 'nationalLucky'>;
@@ -166,6 +164,10 @@ function getDistance(store: DisplayStore) {
   return 'distanceKm' in store ? store.distanceKm : 999;
 }
 
+function sortByDistance<T extends DisplayStore>(stores: T[]) {
+  return [...stores].sort((a, b) => getDistance(a) - getDistance(b) || b.score - a.score || b.totalWins - a.totalWins);
+}
+
 function sortNearbyLuckyByOption(stores: LuckyStoreWithDistance[], sort: NearbySort) {
   const sorted = [...stores];
   if (sort === 'distance') {
@@ -242,6 +244,20 @@ function storesInRegion(stores: LuckyStore[], region?: string, district?: string
   });
 }
 
+function mergeUniqueStores(stores: DisplayStore[]) {
+  const byKey = new Map<string, DisplayStore>();
+
+  stores.forEach(store => {
+    const key = storeKey(store.name, store.address);
+    const existing = byKey.get(key);
+    if (!existing || store.totalWins > existing.totalWins || getDistance(store) < getDistance(existing)) {
+      byKey.set(key, store);
+    }
+  });
+
+  return Array.from(byKey.values());
+}
+
 const luckyById = new Map(luckyStores.map(store => [store.id, store]));
 const luckyByNameAddress = new Map(luckyStores.map(store => [storeKey(store.name, store.address), store]));
 const regionOrder = Object.keys(REGION_FULL);
@@ -313,15 +329,12 @@ async function fetchRetailStores(location: StoreLocation): Promise<{ stores: Dis
     pageNum += 1;
   }
 
-  const sortedStores = stores.sort((a, b) => getDistance(a) - getDistance(b));
-  const nearbyStores = sortedStores.filter(store => getDistance(store) <= NEARBY_RETAIL_RADIUS_KM);
-  const useStores = nearbyStores.length > 0
-    ? nearbyStores
-    : sortedStores.slice(0, NEARBY_RETAIL_FALLBACK_LIMIT);
+  const nearbyLucky = nearbyLuckyStores(location, 'all');
+  const mergedStores = mergeUniqueStores([...stores, ...nearbyLucky]);
 
   return {
     label: `${area.regionCode} ${area.district}`,
-    stores: useStores,
+    stores: sortByDistance(mergedStores),
   };
 }
 
@@ -344,13 +357,13 @@ function StoreCard({
       <View style={s.storeHead}>
         <View style={{ flex: 1 }}>
           <Text style={s.storeName} numberOfLines={1}>{store.name}</Text>
-          <Text style={s.storeMeta}>{meta}</Text>
+          <Text style={s.storeMeta} numberOfLines={1}>{meta}</Text>
         </View>
         <View style={s.scoreBadge}>
           <Text style={s.scoreText}>{store.totalWins}회</Text>
         </View>
       </View>
-      <Text style={s.storeWins}>{storeSummary(store)}</Text>
+      <Text style={s.storeWins} numberOfLines={1}>{storeSummary(store)}</Text>
       <Text style={s.storeAddress} numberOfLines={1}>{store.address}</Text>
     </TouchableOpacity>
   );
@@ -843,14 +856,14 @@ const s = StyleSheet.create({
   sortText: { fontSize: 9, lineHeight: 10, fontWeight: '800', color: C.gray, textAlign: 'center', includeFontPadding: false },
   sortTextActive: { color: '#FFFFFF' },
   emptyText: { marginHorizontal: 16, marginTop: 8, padding: 16, borderWidth: 1, borderColor: C.border, borderRadius: 12, backgroundColor: C.card, fontSize: 12, color: C.gray, textAlign: 'center' },
-  storeCard: { minHeight: 104, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.border, borderRadius: 12, padding: 12, marginHorizontal: 16, marginTop: 8 },
+  storeCard: { height: 104, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.border, borderRadius: 12, paddingTop: 12, paddingRight: 12, paddingBottom: 12, paddingLeft: 12, marginHorizontal: 16, marginTop: 8 },
   storeCardSelected: { borderColor: C.accent },
-  storeHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  storeName: { fontSize: 14, fontWeight: '800', color: C.black },
-  storeMeta: { fontSize: 10, color: C.gray, marginTop: 2 },
-  scoreBadge: { borderRadius: 12, backgroundColor: C.card, borderWidth: 1, borderColor: C.border, paddingHorizontal: 8, paddingVertical: 4 },
-  scoreText: { fontSize: 11, fontWeight: '800', color: C.accent },
-  storeWins: { fontSize: 12, fontWeight: '700', color: C.black, marginTop: 8 },
-  storeAddress: { flex: 1, fontSize: 11, color: C.gray, lineHeight: 16, marginTop: 4 },
+  storeHead: { height: 32, flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  storeName: { fontSize: 14, lineHeight: 17, fontWeight: '800', color: C.black, includeFontPadding: false },
+  storeMeta: { fontSize: 10, lineHeight: 13, color: C.gray, marginTop: 2, includeFontPadding: false },
+  scoreBadge: { height: 26, borderRadius: 13, backgroundColor: C.card, borderWidth: 1, borderColor: C.border, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center' },
+  scoreText: { fontSize: 11, lineHeight: 13, fontWeight: '800', color: C.accent, includeFontPadding: false },
+  storeWins: { fontSize: 12, lineHeight: 15, fontWeight: '700', color: C.black, marginTop: 8, includeFontPadding: false },
+  storeAddress: { flex: 1, fontSize: 11, color: C.gray, lineHeight: 14, marginTop: 5, includeFontPadding: false },
   navHintRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
 });
