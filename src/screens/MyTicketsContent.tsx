@@ -5,7 +5,7 @@ import { Alert, Linking, Modal, ScrollView, StyleSheet, Text, TextInput, Touchab
 import AdBanner from '../components/AdBanner';
 import HeaderInfo from '../components/HeaderInfo';
 import ScreenHeader from '../components/ScreenHeader';
-import { parseLottoQr } from '../data/lottoQr';
+import { parseLottoQr, SAMPLE_LOTTO_QR } from '../data/lottoQr';
 import { buildTicket, deleteTicket, evaluateTicket, EvaluatedTicket, getSavedTickets, SavedTicket, saveTicket } from '../data/ticketStore';
 import { Draw } from '../data/lottoData';
 import { Ball } from './HomeContent';
@@ -140,23 +140,32 @@ export default function MyTicketsContent({ draws }: { draws: Draw[] }) {
     setScanLocked(false);
   }
 
-  async function handleQrScanned(result: BarcodeScanningResult) {
-    if (scanLocked) return;
-    setScanLocked(true);
-
-    const rawText = result.raw ?? result.data ?? '';
+  async function saveQrText(rawText: string, successTitle = 'QR 등록 완료') {
     const parsed = parseLottoQr(rawText);
-    if (!parsed) {
-      setScanRawText(rawText);
-      return;
-    }
+    if (!parsed) return false;
 
     const ticket = buildTicket(parsed.drawNo, parsed.games, 'qr', parsed.rawText);
     await saveTicket(ticket);
     await loadTickets();
     setScannerOpen(false);
     setScanRawText('');
-    Alert.alert('QR 등록 완료', `${parsed.drawNo}회 ${parsed.games.length}게임을 저장했습니다.`);
+    Alert.alert(successTitle, `${parsed.drawNo}회 ${parsed.games.length}게임을 저장했습니다.`);
+    return true;
+  }
+
+  async function handleSampleQr() {
+    await saveQrText(SAMPLE_LOTTO_QR, '샘플 QR 등록 완료');
+  }
+
+  async function handleQrScanned(result: BarcodeScanningResult) {
+    if (scanLocked) return;
+    setScanLocked(true);
+
+    const rawText = result.raw ?? result.data ?? '';
+    const saved = await saveQrText(rawText);
+    if (!saved) {
+      setScanRawText(rawText);
+    }
   }
 
   return (
@@ -174,10 +183,18 @@ export default function MyTicketsContent({ draws }: { draws: Draw[] }) {
               <Text style={s.cardTitle}>구매 번호 등록</Text>
               <Text style={s.cardSub}>다음 회차 {latest ? latest.drwNo + 1 : '-'}회</Text>
             </View>
-            <TouchableOpacity style={s.qrButton} activeOpacity={0.75} onPress={openScanner}>
-              <Ionicons name="qr-code-outline" size={16} color={C.black} />
-              <Text style={s.qrButtonText}>QR 스캔</Text>
-            </TouchableOpacity>
+            <View style={s.qrActions}>
+              {__DEV__ ? (
+                <TouchableOpacity style={s.qrButton} activeOpacity={0.75} onPress={handleSampleQr}>
+                  <Ionicons name="flask-outline" size={15} color={C.black} />
+                  <Text style={s.qrButtonText}>샘플 QR</Text>
+                </TouchableOpacity>
+              ) : null}
+              <TouchableOpacity style={s.qrButton} activeOpacity={0.75} onPress={openScanner}>
+                <Ionicons name="qr-code-outline" size={16} color={C.black} />
+                <Text style={s.qrButtonText}>QR 스캔</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           <Text style={s.label}>회차</Text>
@@ -363,6 +380,7 @@ const s = StyleSheet.create({
   btnPrimaryText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
   btnSecondary: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.border },
   btnSecondaryText: { fontSize: 14, fontWeight: '600', color: C.black },
+  qrActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   qrButton: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.border, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
   qrButtonText: { fontSize: 12, fontWeight: '700', color: C.black },
   listHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 16, marginTop: 16, marginBottom: 2 },
