@@ -312,10 +312,10 @@ export default function LuckyMapContent({ isActive = true }: { isActive?: boolea
     <View style={s.safe}>
       <FlatList
         data={listItems}
-        keyExtractor={item => {
-          if (item.type === 'region') return `region-${item.region.key}`;
-          if (item.type === 'district') return `district-${item.district.region}-${item.district.key}`;
-          return item.store.id;
+        keyExtractor={(item, index) => {
+          if (item.type === 'region') return `region-${item.region.key}-${index}`;
+          if (item.type === 'district') return `district-${item.district.region}-${item.district.key}-${index}`;
+          return `store-${item.store.id}-${item.store.name}-${index}`;
         }}
         renderItem={renderItem}
         ListHeaderComponent={header}

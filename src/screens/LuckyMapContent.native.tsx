@@ -726,9 +726,9 @@ export default function LuckyMapContent({ isActive = true }: { isActive?: boolea
               showsMyLocationButton={false}
               showsCompass
             >
-              {markerStores.map(store => (
+              {markerStores.map((store, index) => (
                 <Marker
-                  key={store.id}
+                  key={`marker-${store.id}-${store.name}-${index}`}
                   coordinate={{ latitude: store.lat, longitude: store.lng }}
                   title={store.name}
                   description={storeSummary(store)}
@@ -798,10 +798,10 @@ export default function LuckyMapContent({ isActive = true }: { isActive?: boolea
       <FlatList
         ref={listRef}
         data={listItems}
-        keyExtractor={item => {
-          if (item.type === 'region') return `region-${item.region.key}`;
-          if (item.type === 'district') return `district-${item.district.region}-${item.district.key}`;
-          return item.store.id;
+        keyExtractor={(item, index) => {
+          if (item.type === 'region') return `region-${item.region.key}-${index}`;
+          if (item.type === 'district') return `district-${item.district.region}-${item.district.key}-${index}`;
+          return `store-${item.store.id}-${item.store.name}-${index}`;
         }}
         renderItem={renderListItem}
         ListHeaderComponent={header}
