@@ -856,7 +856,7 @@ const s = StyleSheet.create({
   sortText: { fontSize: 9, lineHeight: 10, fontWeight: '800', color: C.gray, textAlign: 'center', includeFontPadding: false },
   sortTextActive: { color: '#FFFFFF' },
   emptyText: { marginHorizontal: 16, marginTop: 8, padding: 16, borderWidth: 1, borderColor: C.border, borderRadius: 12, backgroundColor: C.card, fontSize: 12, color: C.gray, textAlign: 'center' },
-  storeCard: { height: 104, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.border, borderRadius: 12, paddingTop: 12, paddingRight: 12, paddingBottom: 12, paddingLeft: 12, marginHorizontal: 16, marginTop: 8 },
+  storeCard: { height: 100, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.border, borderRadius: 12, paddingTop: 12, paddingRight: 12, paddingBottom: 12, paddingLeft: 12, marginHorizontal: 16, marginTop: 8 },
   storeCardSelected: { borderColor: C.accent },
   storeHead: { height: 32, flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   storeName: { fontSize: 14, lineHeight: 17, fontWeight: '800', color: C.black, includeFontPadding: false },
