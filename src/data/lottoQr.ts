@@ -4,8 +4,6 @@ export interface ParsedLottoQr {
   rawText: string;
 }
 
-export const SAMPLE_LOTTO_QR = 'https://m.dhlottery.co.kr/qr.do?method=winQr&v=1223010203040506070809101112131415161718192021222324252627282930';
-
 function extractQueryValue(rawText: string, key: string) {
   const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const match = rawText.match(new RegExp(`[?&]${escapedKey}=([^&#]+)`));
