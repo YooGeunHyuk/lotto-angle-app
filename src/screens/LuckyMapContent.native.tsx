@@ -12,6 +12,8 @@ const C = { bg: '#FFFFFF', card: '#F7F7F7', border: '#EEEEEE', black: '#1A1A1A',
 const KOREA_REGION = { latitude: 36.4203004, longitude: 128.31796, latitudeDelta: 5.2, longitudeDelta: 4.2 };
 const MARKER_LIMIT = 650;
 const API_BASE = 'https://www.dhlottery.co.kr';
+const NEARBY_RETAIL_RADIUS_KM = 5;
+const NEARBY_RETAIL_FALLBACK_LIMIT = 20;
 
 type MainMode = 'local' | 'national';
 type LocalView = Exclude<LuckyStoreMode, 'nationalLucky'>;
@@ -164,6 +166,14 @@ function getDistance(store: DisplayStore) {
   return 'distanceKm' in store ? store.distanceKm : 999;
 }
 
+function sortNearbyLuckyByOption(stores: LuckyStoreWithDistance[], sort: NearbySort) {
+  const sorted = [...stores];
+  if (sort === 'distance') {
+    return sorted.sort((a, b) => a.distanceKm - b.distanceKm || b.score - a.score || b.totalWins - a.totalWins);
+  }
+  return sorted.sort((a, b) => b.score - a.score || b.totalWins - a.totalWins || a.distanceKm - b.distanceKm);
+}
+
 function sortStoresByWins<T extends LuckyStore>(stores: T[]) {
   return [...stores].sort((a, b) =>
     b.firstWins - a.firstWins ||
@@ -303,9 +313,15 @@ async function fetchRetailStores(location: StoreLocation): Promise<{ stores: Dis
     pageNum += 1;
   }
 
+  const sortedStores = stores.sort((a, b) => getDistance(a) - getDistance(b));
+  const nearbyStores = sortedStores.filter(store => getDistance(store) <= NEARBY_RETAIL_RADIUS_KM);
+  const useStores = nearbyStores.length > 0
+    ? nearbyStores
+    : sortedStores.slice(0, NEARBY_RETAIL_FALLBACK_LIMIT);
+
   return {
     label: `${area.regionCode} ${area.district}`,
-    stores: stores.sort((a, b) => getDistance(a) - getDistance(b)),
+    stores: useStores,
   };
 }
 
@@ -335,7 +351,7 @@ function StoreCard({
         </View>
       </View>
       <Text style={s.storeWins}>{storeSummary(store)}</Text>
-      <Text style={s.storeAddress} numberOfLines={2}>{store.address}</Text>
+      <Text style={s.storeAddress} numberOfLines={1}>{store.address}</Text>
     </TouchableOpacity>
   );
 }
@@ -422,13 +438,7 @@ export default function LuckyMapContent({ isActive = true }: { isActive?: boolea
   const [selectedId, setSelectedId] = useState<string | undefined>();
 
   const nearbyLuckyBase = useMemo(() => location ? nearbyLuckyStores(location, 'all') : [], [location]);
-  const nearbyLucky = useMemo(() => {
-    const sorted = [...nearbyLuckyBase];
-    if (nearbySort === 'distance') {
-      return sorted.sort((a, b) => a.distanceKm - b.distanceKm || b.score - a.score || b.totalWins - a.totalWins);
-    }
-    return sorted.sort((a, b) => b.score - a.score || b.totalWins - a.totalWins || a.distanceKm - b.distanceKm);
-  }, [nearbyLuckyBase, nearbySort]);
+  const nearbyLucky = useMemo(() => sortNearbyLuckyByOption(nearbyLuckyBase, nearbySort), [nearbyLuckyBase, nearbySort]);
   const nationalStores = useMemo(() => nationalLuckyStores(), []);
   const recentStores = useMemo(() => recentRoundStores(), []);
   const regionSummaries = useMemo(() => buildRegionSummaries(nationalStores), [nationalStores]);
@@ -585,6 +595,15 @@ export default function LuckyMapContent({ isActive = true }: { isActive?: boolea
     if (nextView !== 'regional') {
       setSelectedRegion(undefined);
       setSelectedDistrict(undefined);
+    }
+    resetListPosition();
+  }
+
+  function selectNearbySort(nextSort: NearbySort) {
+    setNearbySort(nextSort);
+    if (localView === 'nearbyLucky') {
+      const nextStores = sortNearbyLuckyByOption(nearbyLuckyBase, nextSort);
+      setSelectedId(nextStores[0]?.id);
     }
     resetListPosition();
   }
@@ -749,7 +768,7 @@ export default function LuckyMapContent({ isActive = true }: { isActive?: boolea
           {mainMode === 'local' && localView === 'nearbyLucky' ? (
             <View style={s.sortControl}>
               {SORT_OPTIONS.map(option => (
-                <TouchableOpacity key={option.value} style={[s.sortBtn, nearbySort === option.value && s.sortBtnActive]} onPress={() => setNearbySort(option.value)} activeOpacity={0.75}>
+                <TouchableOpacity key={option.value} style={[s.sortBtn, nearbySort === option.value && s.sortBtnActive]} onPress={() => selectNearbySort(option.value)} activeOpacity={0.75}>
                   <Text style={[s.sortText, nearbySort === option.value && s.sortTextActive]}>{option.label}</Text>
                 </TouchableOpacity>
               ))}
@@ -824,7 +843,7 @@ const s = StyleSheet.create({
   sortText: { fontSize: 9, lineHeight: 10, fontWeight: '800', color: C.gray, textAlign: 'center', includeFontPadding: false },
   sortTextActive: { color: '#FFFFFF' },
   emptyText: { marginHorizontal: 16, marginTop: 8, padding: 16, borderWidth: 1, borderColor: C.border, borderRadius: 12, backgroundColor: C.card, fontSize: 12, color: C.gray, textAlign: 'center' },
-  storeCard: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.border, borderRadius: 12, padding: 12, marginHorizontal: 16, marginTop: 8 },
+  storeCard: { minHeight: 104, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.border, borderRadius: 12, padding: 12, marginHorizontal: 16, marginTop: 8 },
   storeCardSelected: { borderColor: C.accent },
   storeHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   storeName: { fontSize: 14, fontWeight: '800', color: C.black },
