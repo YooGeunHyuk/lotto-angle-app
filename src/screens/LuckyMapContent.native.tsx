@@ -462,6 +462,21 @@ export default function LuckyMapContent({ isActive = true }: { isActive?: boolea
   const selectedStore = markerSource.find(store => store.id === selectedId) ?? markerStores[0] ?? displayStores[0];
   const title = sectionTitle(mainMode, localView, nationalView, Boolean(location), selectedRegion, selectedDistrict);
   const needsLocation = mainMode === 'local';
+  const mapInitialRegion = needsLocation && location
+    ? {
+      latitude: location.lat,
+      longitude: location.lng,
+      latitudeDelta: 0.25,
+      longitudeDelta: 0.25,
+    }
+    : selectedStore
+      ? {
+        latitude: selectedStore.lat,
+        longitude: selectedStore.lng,
+        latitudeDelta: 0.25,
+        longitudeDelta: 0.25,
+      }
+      : KOREA_REGION;
 
   const locateMe = useCallback(async (targetView: LocalView = localView) => {
     setLocating(true);
@@ -510,6 +525,22 @@ export default function LuckyMapContent({ isActive = true }: { isActive?: boolea
       void locateMe(localView);
     }
   }, [isActive, localView, locateMe, locating, location, locationRequested, needsLocation]);
+
+  useEffect(() => {
+    if (!showMap || !needsLocation) return;
+
+    if (!location) {
+      if (!locating) void locateMe(localView);
+      return;
+    }
+
+    mapRef.current?.animateToRegion({
+      latitude: location.lat,
+      longitude: location.lng,
+      latitudeDelta: 0.25,
+      longitudeDelta: 0.25,
+    }, 250);
+  }, [localView, locateMe, locating, location, needsLocation, showMap]);
 
   function focusStore(store: DisplayStore) {
     setSelectedId(store.id);
@@ -658,7 +689,7 @@ export default function LuckyMapContent({ isActive = true }: { isActive?: boolea
               ref={mapRef}
               style={s.map}
               provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-              initialRegion={KOREA_REGION}
+              initialRegion={mapInitialRegion}
               showsUserLocation={Boolean(location)}
               showsMyLocationButton={false}
               showsCompass
