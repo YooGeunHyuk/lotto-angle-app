@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.meetyuuu.lottoanalyzer",
-      "buildNumber": "10",
+      "buildNumber": "11",
       "infoPlist": {
         "UIViewControllerBasedStatusBarAppearance": false,
         "ITSAppUsesNonExemptEncryption": false,
@@ -50,13 +50,6 @@
         }
       ],
       [
-        "react-native-google-mobile-ads",
-        {
-          "androidAppId": "ca-app-pub-5697680589501542~1429646675",
-          "iosAppId": "ca-app-pub-5697680589501542~7803483333"
-        }
-      ],
-      [
         "expo-location",
         {
           "locationWhenInUsePermission": "내 주변 로또 판매점과 당첨 이력 판매점을 보여주기 위해 현재 위치를 사용합니다."
@@ -86,9 +79,5 @@
     "updates": {
       "url": "https://u.expo.dev/e029e2f2-4393-4645-b48f-eb5d0ecd5da5"
     }
-  },
-  "react-native-google-mobile-ads": {
-    "android_app_id": "ca-app-pub-5697680589501542~1429646675",
-    "ios_app_id": "ca-app-pub-5697680589501542~7803483333"
   }
 }
