@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.meetyuuu.lottoanalyzer",
-      "buildNumber": "12",
+      "buildNumber": "13",
       "infoPlist": {
         "UIViewControllerBasedStatusBarAppearance": false,
         "ITSAppUsesNonExemptEncryption": false,
@@ -60,6 +60,13 @@
         {
           "cameraPermission": "구매한 로또 QR을 스캔해 내 번호에 등록하기 위해 카메라를 사용합니다."
         }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-5697680589501542~1429646675",
+          "iosAppId": "ca-app-pub-5697680589501542~7803483333"
+        }
       ]
     ],
     "experiments": {
@@ -75,6 +82,10 @@
     "owner": "meetyuuu",
     "updates": {
       "enabled": false
+    },
+    "react-native-google-mobile-ads": {
+      "android_app_id": "ca-app-pub-5697680589501542~1429646675",
+      "ios_app_id": "ca-app-pub-5697680589501542~7803483333"
     }
   }
 }
