@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.meetyuuu.lottoanalyzer",
-      "buildNumber": "11",
+      "buildNumber": "12",
       "infoPlist": {
         "UIViewControllerBasedStatusBarAppearance": false,
         "ITSAppUsesNonExemptEncryption": false,
@@ -73,11 +73,8 @@
       }
     },
     "owner": "meetyuuu",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
     "updates": {
-      "url": "https://u.expo.dev/e029e2f2-4393-4645-b48f-eb5d0ecd5da5"
+      "enabled": false
     }
   }
 }
