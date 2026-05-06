@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.meetyuuu.lottoanalyzer",
-      "buildNumber": "8",
+      "buildNumber": "9",
       "infoPlist": {
         "UIViewControllerBasedStatusBarAppearance": false,
         "ITSAppUsesNonExemptEncryption": false,
@@ -86,5 +86,9 @@
     "updates": {
       "url": "https://u.expo.dev/e029e2f2-4393-4645-b48f-eb5d0ecd5da5"
     }
+  },
+  "react-native-google-mobile-ads": {
+    "android_app_id": "ca-app-pub-5697680589501542~1429646675",
+    "ios_app_id": "ca-app-pub-5697680589501542~7803483333"
   }
 }
