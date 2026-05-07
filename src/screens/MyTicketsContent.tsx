@@ -42,7 +42,7 @@ function getResultSummary(ticket: EvaluatedTicket): string {
 
   const rankOrder = ['1등', '2등', '3등', '4등', '5등'] as const;
   const bestRank = rankOrder.find(rank => ticket.games.some(game => game.rank === rank));
-  return bestRank ?? '0등';
+  return bestRank ?? '낙첨';
 }
 
 function statusColor(ticket: EvaluatedTicket): string {
@@ -58,9 +58,11 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanLocked, setScanLocked] = useState(false);
   const [scanRawText, setScanRawText] = useState('');
-  const [expandedTicketIds, setExpandedTicketIds] = useState<Set<string>>(() => new Set());
+  const [qrSuccessMessage, setQrSuccessMessage] = useState('');
+  const [expandedTicketId, setExpandedTicketId] = useState<string | null>(null);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const refs = useRef<(TextInput | null)[]>([]);
+  const scanLockedRef = useRef(false);
 
   const evaluatedTickets = useMemo(
     () => tickets.map(ticket => evaluateTicket(ticket, draws)),
@@ -75,6 +77,17 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
   useEffect(() => {
     loadTickets();
   }, [loadTickets, refreshKey]);
+
+  useEffect(() => {
+    if (!qrSuccessMessage) return undefined;
+    const timer = setTimeout(() => setQrSuccessMessage(''), 1800);
+    return () => clearTimeout(timer);
+  }, [qrSuccessMessage]);
+
+  function setScannerLocked(value: boolean) {
+    scanLockedRef.current = value;
+    setScanLocked(value);
+  }
 
   function updateNum(gameIndex: number, numberIndex: number, value: string) {
     const next = games.map(game => [...game]);
@@ -120,29 +133,17 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
 
   async function handleDelete(ticketId: string) {
     await deleteTicket(ticketId);
-    setExpandedTicketIds(prev => {
-      const next = new Set(prev);
-      next.delete(ticketId);
-      return next;
-    });
+    setExpandedTicketId(prev => (prev === ticketId ? null : prev));
     await loadTickets();
   }
 
   function toggleTicket(ticketId: string) {
-    setExpandedTicketIds(prev => {
-      const next = new Set(prev);
-      if (next.has(ticketId)) {
-        next.delete(ticketId);
-      } else {
-        next.add(ticketId);
-      }
-      return next;
-    });
+    setExpandedTicketId(prev => (prev === ticketId ? null : ticketId));
   }
 
   async function openScanner() {
     setScanRawText('');
-    setScanLocked(false);
+    setScannerLocked(false);
 
     const permission = cameraPermission?.granted ? cameraPermission : await requestCameraPermission();
     if (permission.granted) {
@@ -162,7 +163,7 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
 
   function closeScanner() {
     setScannerOpen(false);
-    setScanLocked(false);
+    setScannerLocked(false);
   }
 
   async function saveQrText(rawText: string, successTitle = 'QR 등록 완료') {
@@ -173,14 +174,15 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
     await saveTicket(ticket);
     await loadTickets();
     setScannerOpen(false);
+    setScannerLocked(false);
     setScanRawText('');
-    Alert.alert(successTitle, `${parsed.drawNo}회 ${parsed.games.length}게임을 저장했습니다.`);
+    setQrSuccessMessage(`${successTitle} · ${parsed.drawNo}회 ${parsed.games.length}게임 저장`);
     return true;
   }
 
   async function handleQrScanned(result: BarcodeScanningResult) {
-    if (scanLocked) return;
-    setScanLocked(true);
+    if (scanLockedRef.current) return;
+    setScannerLocked(true);
 
     const rawText = result.raw ?? result.data ?? '';
     const saved = await saveQrText(rawText);
@@ -267,7 +269,8 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
           </View>
         ) : (
           evaluatedTickets.map(ticket => {
-            const isExpanded = expandedTicketIds.has(ticket.id);
+            const isExpanded = expandedTicketId === ticket.id;
+            const resultSummary = getResultSummary(ticket);
 
             return (
               <View key={ticket.id} style={[s.card, !isExpanded && s.ticketCardCollapsed]}>
@@ -275,26 +278,26 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
                   <View style={s.ticketMetaRow}>
                     <Text style={s.ticketTitle}>{ticket.drawNo}회</Text>
                     <View style={[s.statusBadge, { borderColor: statusColor(ticket) }]}>
-                      <Text style={[s.statusText, { color: statusColor(ticket) }]}>({getDrawStateLabel(ticket)})</Text>
+                      <Text style={[s.statusText, { color: statusColor(ticket) }]}>{getDrawStateLabel(ticket)}</Text>
                     </View>
-                    <View style={[s.resultBadge, ticket.status === 'settled' && getResultSummary(ticket) !== '0등' && s.resultBadgeWin]}>
-                      <Text style={[s.resultText, ticket.status === 'settled' && getResultSummary(ticket) !== '0등' && s.resultTextWin]}>({getResultSummary(ticket)})</Text>
+                    <View style={[s.resultBadge, ticket.status === 'settled' && resultSummary !== '낙첨' && s.resultBadgeWin]}>
+                      <Text style={[s.resultText, ticket.status === 'settled' && resultSummary !== '낙첨' && s.resultTextWin]}>{resultSummary}</Text>
                     </View>
                   </View>
 
                   <View style={s.ticketActions}>
-                    <TouchableOpacity onPress={() => Alert.alert('삭제', `${ticket.drawNo}회 번호를 삭제할까요?`, [
-                      { text: '취소', style: 'cancel' },
-                      { text: '삭제', style: 'destructive', onPress: () => handleDelete(ticket.id) },
-                    ])}>
-                      <Ionicons name="trash-outline" size={18} color={C.gray} />
-                    </TouchableOpacity>
                     <TouchableOpacity
                       style={[s.ticketToggle, isExpanded && s.ticketToggleActive]}
                       activeOpacity={0.75}
                       onPress={() => toggleTicket(ticket.id)}
                     >
-                      <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={15} color={isExpanded ? '#FFFFFF' : C.black} />
+                      <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={13} color={isExpanded ? '#FFFFFF' : C.black} />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={s.deleteButton} onPress={() => Alert.alert('삭제', `${ticket.drawNo}회 번호를 삭제할까요?`, [
+                      { text: '취소', style: 'cancel' },
+                      { text: '삭제', style: 'destructive', onPress: () => handleDelete(ticket.id) },
+                    ])}>
+                      <Ionicons name="trash-outline" size={17} color={C.gray} />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -363,11 +366,19 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
               </TouchableOpacity>
             </View>
 
-            <View style={s.scanFrame}>
-              <View style={[s.corner, s.cornerTopLeft]} />
-              <View style={[s.corner, s.cornerTopRight]} />
-              <View style={[s.corner, s.cornerBottomLeft]} />
-              <View style={[s.corner, s.cornerBottomRight]} />
+            <View style={s.scanMask} pointerEvents="none">
+              <View style={s.scanShade} />
+              <View style={s.scanMiddle}>
+                <View style={s.scanShade} />
+                <View style={s.scanFrame}>
+                  <View style={[s.corner, s.cornerTopLeft]} />
+                  <View style={[s.corner, s.cornerTopRight]} />
+                  <View style={[s.corner, s.cornerBottomLeft]} />
+                  <View style={[s.corner, s.cornerBottomRight]} />
+                </View>
+                <View style={s.scanShade} />
+              </View>
+              <View style={s.scanShade} />
             </View>
 
             <View style={s.scannerBottom}>
@@ -375,17 +386,23 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
                 <View style={s.scanResultCard}>
                   <Text style={s.scanResultTitle}>QR은 읽었지만 번호 형식을 확인하지 못했습니다</Text>
                   <Text selectable style={s.scanRawText} numberOfLines={3}>{scanRawText}</Text>
-                  <TouchableOpacity style={s.scanRetryBtn} onPress={() => { setScanRawText(''); setScanLocked(false); }} activeOpacity={0.78}>
+                  <TouchableOpacity style={s.scanRetryBtn} onPress={() => { setScanRawText(''); setScannerLocked(false); }} activeOpacity={0.78}>
                     <Text style={s.scanRetryText}>다시 스캔</Text>
                   </TouchableOpacity>
                 </View>
               ) : (
-                <Text style={s.scannerHelp}>종이 로또 하단 QR을 사각형 안에 맞춰주세요</Text>
+                <Text style={s.scannerHelp}>종이 로또 우측 상단 QR을 사각형 안에 맞춰주세요</Text>
               )}
             </View>
           </View>
         </View>
       </Modal>
+      {qrSuccessMessage ? (
+        <View pointerEvents="none" style={s.successToast}>
+          <Ionicons name="checkmark-circle" size={15} color="#FFFFFF" />
+          <Text style={s.successToastText}>{qrSuccessMessage}</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -423,14 +440,15 @@ const s = StyleSheet.create({
   sourceChip: { flexDirection: 'row', alignItems: 'center', gap: 3, borderWidth: 1, borderColor: C.border, backgroundColor: '#FFFFFF', borderRadius: 999, paddingHorizontal: 6, paddingVertical: 3 },
   sourceChipText: { fontSize: 10, fontWeight: '800', color: C.gray },
   ticketSub: { fontSize: 11, color: C.gray, marginTop: 3 },
-  ticketActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  ticketActions: { width: 30, alignItems: 'center', justifyContent: 'center', gap: 7 },
+  deleteButton: { width: 26, height: 22, alignItems: 'center', justifyContent: 'center' },
   statusBadge: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4 },
   statusText: { fontSize: 11, fontWeight: '700' },
   resultBadge: { borderWidth: 1, borderColor: C.border, backgroundColor: '#FFFFFF', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4 },
   resultBadgeWin: { borderColor: C.win },
   resultText: { fontSize: 11, fontWeight: '700', color: C.gray },
   resultTextWin: { color: C.win },
-  ticketToggle: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.border },
+  ticketToggle: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.border },
   ticketToggleActive: { backgroundColor: C.black, borderColor: C.black },
   ticketSummaryRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 7 },
   drawInfo: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.border },
@@ -446,11 +464,14 @@ const s = StyleSheet.create({
   rank: { fontSize: 11, fontWeight: '700', color: C.gray, width: 38, textAlign: 'right' },
   scannerRoot: { flex: 1, backgroundColor: '#000000' },
   camera: { flex: 1 },
-  scannerOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'space-between' },
+  scannerOverlay: { ...StyleSheet.absoluteFillObject },
   scannerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingTop: 54 },
   scannerIconBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
   scannerTitle: { fontSize: 16, fontWeight: '800', color: '#FFFFFF' },
-  scanFrame: { alignSelf: 'center', width: 248, height: 248, marginTop: 76 },
+  scanMask: { flex: 1, marginTop: 28 },
+  scanShade: { flex: 1, backgroundColor: 'rgba(0,0,0,0.58)' },
+  scanMiddle: { height: 248, flexDirection: 'row' },
+  scanFrame: { width: 248, height: 248 },
   corner: { position: 'absolute', width: 38, height: 38, borderColor: '#FFFFFF' },
   cornerTopLeft: { left: 0, top: 0, borderLeftWidth: 4, borderTopWidth: 4, borderTopLeftRadius: 18 },
   cornerTopRight: { right: 0, top: 0, borderRightWidth: 4, borderTopWidth: 4, borderTopRightRadius: 18 },
@@ -463,4 +484,6 @@ const s = StyleSheet.create({
   scanRawText: { marginTop: 8, fontSize: 11, lineHeight: 16, color: C.gray },
   scanRetryBtn: { marginTop: 12, alignItems: 'center', backgroundColor: C.black, borderRadius: 999, paddingVertical: 11 },
   scanRetryText: { fontSize: 13, fontWeight: '800', color: '#FFFFFF' },
+  successToast: { position: 'absolute', left: 18, right: 18, bottom: 92, minHeight: 42, borderRadius: 999, backgroundColor: 'rgba(26,26,26,0.92)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 14 },
+  successToastText: { fontSize: 12, fontWeight: '800', color: '#FFFFFF', textAlign: 'center' },
 });
