@@ -33,9 +33,16 @@ function formatSavedDate(value: string): string {
   return `${date.getFullYear()}.${month}.${day}`;
 }
 
-function getStatusLabel(ticket: EvaluatedTicket): string {
-  if (ticket.status === 'pending') return '추첨전';
-  return ticket.games.some(game => game.rank !== '낙첨') ? '당첨 확인' : '낙첨';
+function getDrawStateLabel(ticket: EvaluatedTicket): string {
+  return ticket.status === 'pending' ? '추첨전' : '추첨 완료';
+}
+
+function getResultSummary(ticket: EvaluatedTicket): string {
+  if (ticket.status === 'pending') return '-';
+
+  const rankOrder = ['1등', '2등', '3등', '4등', '5등'] as const;
+  const bestRank = rankOrder.find(rank => ticket.games.some(game => game.rank === rank));
+  return bestRank ?? '0등';
 }
 
 function statusColor(ticket: EvaluatedTicket): string {
@@ -51,7 +58,7 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanLocked, setScanLocked] = useState(false);
   const [scanRawText, setScanRawText] = useState('');
-  const [compactTickets, setCompactTickets] = useState(false);
+  const [expandedTicketIds, setExpandedTicketIds] = useState<Set<string>>(() => new Set());
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const refs = useRef<(TextInput | null)[]>([]);
 
@@ -113,7 +120,24 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
 
   async function handleDelete(ticketId: string) {
     await deleteTicket(ticketId);
+    setExpandedTicketIds(prev => {
+      const next = new Set(prev);
+      next.delete(ticketId);
+      return next;
+    });
     await loadTickets();
+  }
+
+  function toggleTicket(ticketId: string) {
+    setExpandedTicketIds(prev => {
+      const next = new Set(prev);
+      if (next.has(ticketId)) {
+        next.delete(ticketId);
+      } else {
+        next.add(ticketId);
+      }
+      return next;
+    });
   }
 
   async function openScanner() {
@@ -233,19 +257,7 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
 
         <View style={s.listHead}>
           <Text style={s.sectionTitle}>저장한 번호</Text>
-          <View style={s.listHeadRight}>
-            <Text style={s.dim}>{evaluatedTickets.length}장</Text>
-            {evaluatedTickets.length > 0 && (
-              <TouchableOpacity
-                style={[s.compactToggle, compactTickets && s.compactToggleActive]}
-                activeOpacity={0.75}
-                onPress={() => setCompactTickets(value => !value)}
-              >
-                <Ionicons name={compactTickets ? 'chevron-down' : 'chevron-up'} size={13} color={compactTickets ? '#FFFFFF' : C.black} />
-                <Text style={[s.compactToggleText, compactTickets && s.compactToggleTextActive]}>제목만</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+          <Text style={s.dim}>{evaluatedTickets.length}장</Text>
         </View>
 
         {evaluatedTickets.length === 0 ? (
@@ -254,62 +266,78 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
             <Text style={s.emptyText}>저장된 번호가 없습니다</Text>
           </View>
         ) : (
-          evaluatedTickets.map(ticket => (
-            <View key={ticket.id} style={[s.card, compactTickets && s.ticketCardCollapsed]}>
-              <View style={s.ticketHead}>
-                <View>
-                  <Text style={s.cardTitle}>{ticket.drawNo}회</Text>
+          evaluatedTickets.map(ticket => {
+            const isExpanded = expandedTicketIds.has(ticket.id);
+
+            return (
+              <View key={ticket.id} style={[s.card, !isExpanded && s.ticketCardCollapsed]}>
+                <View style={s.ticketHead}>
                   <View style={s.ticketMetaRow}>
-                    <View style={s.sourceChip}>
-                      <Ionicons name={ticket.source === 'qr' ? 'qr-code-outline' : 'create-outline'} size={11} color={C.gray} />
-                      <Text style={s.sourceChipText}>{ticket.source === 'qr' ? 'QR' : '수동'}</Text>
+                    <Text style={s.ticketTitle}>{ticket.drawNo}회</Text>
+                    <View style={[s.statusBadge, { borderColor: statusColor(ticket) }]}>
+                      <Text style={[s.statusText, { color: statusColor(ticket) }]}>({getDrawStateLabel(ticket)})</Text>
                     </View>
-                    <Text style={s.ticketSub}>{ticket.games.length}게임 · {formatSavedDate(ticket.createdAt)}</Text>
+                    <View style={[s.resultBadge, ticket.status === 'settled' && getResultSummary(ticket) !== '0등' && s.resultBadgeWin]}>
+                      <Text style={[s.resultText, ticket.status === 'settled' && getResultSummary(ticket) !== '0등' && s.resultTextWin]}>({getResultSummary(ticket)})</Text>
+                    </View>
+                  </View>
+
+                  <View style={s.ticketActions}>
+                    <TouchableOpacity onPress={() => Alert.alert('삭제', `${ticket.drawNo}회 번호를 삭제할까요?`, [
+                      { text: '취소', style: 'cancel' },
+                      { text: '삭제', style: 'destructive', onPress: () => handleDelete(ticket.id) },
+                    ])}>
+                      <Ionicons name="trash-outline" size={18} color={C.gray} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[s.ticketToggle, isExpanded && s.ticketToggleActive]}
+                      activeOpacity={0.75}
+                      onPress={() => toggleTicket(ticket.id)}
+                    >
+                      <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={15} color={isExpanded ? '#FFFFFF' : C.black} />
+                    </TouchableOpacity>
                   </View>
                 </View>
-                <View style={s.ticketActions}>
-                  <View style={[s.statusBadge, { borderColor: statusColor(ticket) }]}>
-                    <Text style={[s.statusText, { color: statusColor(ticket) }]}>{getStatusLabel(ticket)}</Text>
+
+                <View style={s.ticketSummaryRow}>
+                  <View style={s.sourceChip}>
+                    <Ionicons name={ticket.source === 'qr' ? 'qr-code-outline' : 'create-outline'} size={11} color={C.gray} />
+                    <Text style={s.sourceChipText}>{ticket.source === 'qr' ? 'QR' : '수동'}</Text>
                   </View>
-                  <TouchableOpacity onPress={() => Alert.alert('삭제', `${ticket.drawNo}회 번호를 삭제할까요?`, [
-                    { text: '취소', style: 'cancel' },
-                    { text: '삭제', style: 'destructive', onPress: () => handleDelete(ticket.id) },
-                  ])}>
-                    <Ionicons name="trash-outline" size={18} color={C.gray} />
-                  </TouchableOpacity>
+                  <Text style={s.ticketSub}>{ticket.games.length}게임 · {formatSavedDate(ticket.createdAt)}</Text>
                 </View>
+
+                {isExpanded && ticket.draw && (
+                  <View style={s.drawInfo}>
+                    <Text style={s.drawLabel}>당첨번호</Text>
+                    <View style={s.drawBalls}>
+                      {ticket.draw.numbers.map(number => <Ball key={number} num={number} size={26} />)}
+                      <Text style={s.plus}>+</Text>
+                      <Ball num={ticket.draw.bonus} size={26} />
+                    </View>
+                  </View>
+                )}
+
+                {isExpanded && ticket.games.map((game, index) => (
+                  <View key={game.id} style={s.gameRow}>
+                    <Text style={s.gameNo}>{String.fromCharCode(65 + index)}</Text>
+                    <View style={s.ballsRow}>
+                      {game.numbers.map(number => {
+                        const isMatched = game.matchedNumbers.includes(number);
+                        const isBonus = game.bonusMatched && ticket.draw?.bonus === number;
+                        return (
+                          <View key={number} style={[s.ballWrap, isMatched && s.matchWrap, isBonus && s.bonusWrap]}>
+                            <Ball num={number} size={32} />
+                          </View>
+                        );
+                      })}
+                    </View>
+                    <Text style={[s.rank, game.rank !== '낙첨' && game.rank !== '추첨전' && { color: C.win }]}>{game.rank}</Text>
+                  </View>
+                ))}
               </View>
-
-              {!compactTickets && ticket.draw && (
-                <View style={s.drawInfo}>
-                  <Text style={s.drawLabel}>당첨번호</Text>
-                  <View style={s.drawBalls}>
-                    {ticket.draw.numbers.map(number => <Ball key={number} num={number} size={26} />)}
-                    <Text style={s.plus}>+</Text>
-                    <Ball num={ticket.draw.bonus} size={26} />
-                  </View>
-                </View>
-              )}
-
-              {!compactTickets && ticket.games.map((game, index) => (
-                <View key={game.id} style={s.gameRow}>
-                  <Text style={s.gameNo}>{String.fromCharCode(65 + index)}</Text>
-                  <View style={s.ballsRow}>
-                    {game.numbers.map(number => {
-                      const isMatched = game.matchedNumbers.includes(number);
-                      const isBonus = game.bonusMatched && ticket.draw?.bonus === number;
-                      return (
-                        <View key={number} style={[s.ballWrap, isMatched && s.matchWrap, isBonus && s.bonusWrap]}>
-                          <Ball num={number} size={32} />
-                        </View>
-                      );
-                    })}
-                  </View>
-                  <Text style={[s.rank, game.rank !== '낙첨' && game.rank !== '추첨전' && { color: C.win }]}>{game.rank}</Text>
-                </View>
-              ))}
-            </View>
-          ))
+            );
+          })
         )}
 
         <AdBanner />
@@ -386,22 +414,25 @@ const s = StyleSheet.create({
   listHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 16, marginTop: 16, marginBottom: 2 },
   sectionTitle: { fontSize: 13, fontWeight: '800', color: C.black },
   dim: { fontSize: 10, color: C.gray },
-  listHeadRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  compactToggle: { flexDirection: 'row', alignItems: 'center', gap: 3, borderRadius: 999, borderWidth: 1, borderColor: C.border, backgroundColor: '#FFFFFF', paddingHorizontal: 8, paddingVertical: 5 },
-  compactToggleActive: { backgroundColor: C.black, borderColor: C.black },
-  compactToggleText: { fontSize: 10, fontWeight: '800', color: C.black },
-  compactToggleTextActive: { color: '#FFFFFF' },
   empty: { marginTop: 40, alignItems: 'center', gap: 8 },
   emptyText: { fontSize: 12, color: C.gray },
-  ticketCardCollapsed: { paddingVertical: 12 },
-  ticketHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  ticketMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
+  ticketCardCollapsed: { paddingVertical: 13 },
+  ticketHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  ticketTitle: { fontSize: 14, fontWeight: '800', color: C.black },
+  ticketMetaRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0 },
   sourceChip: { flexDirection: 'row', alignItems: 'center', gap: 3, borderWidth: 1, borderColor: C.border, backgroundColor: '#FFFFFF', borderRadius: 999, paddingHorizontal: 6, paddingVertical: 3 },
   sourceChipText: { fontSize: 10, fontWeight: '800', color: C.gray },
   ticketSub: { fontSize: 11, color: C.gray, marginTop: 3 },
   ticketActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   statusBadge: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4 },
   statusText: { fontSize: 11, fontWeight: '700' },
+  resultBadge: { borderWidth: 1, borderColor: C.border, backgroundColor: '#FFFFFF', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4 },
+  resultBadgeWin: { borderColor: C.win },
+  resultText: { fontSize: 11, fontWeight: '700', color: C.gray },
+  resultTextWin: { color: C.win },
+  ticketToggle: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.border },
+  ticketToggleActive: { backgroundColor: C.black, borderColor: C.black },
+  ticketSummaryRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 7 },
   drawInfo: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.border },
   drawLabel: { fontSize: 11, color: C.gray, marginBottom: 8 },
   drawBalls: { flexDirection: 'row', alignItems: 'center', gap: 5 },
