@@ -838,7 +838,7 @@ const s = StyleSheet.create({
   mapToggleTextActive: { color: '#FFFFFF' },
   mapCard: { height: 300, marginHorizontal: 16, marginTop: 12, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: C.border, backgroundColor: C.card },
   map: { flex: 1 },
-  mapLocateBtn: { position: 'absolute', right: 12, top: 12, width: 38, height: 38, borderRadius: 19, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
+  mapLocateBtn: { position: 'absolute', right: 12, bottom: 12, width: 38, height: 38, borderRadius: 19, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
   selectedCard: { marginTop: 12 },
   selectedTitle: { fontSize: 13, fontWeight: '800', color: C.black, marginHorizontal: 16 },
   pathRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginHorizontal: 16, marginTop: 12 },

@@ -416,7 +416,7 @@ const s = StyleSheet.create({
   dim: { fontSize: 10, color: C.gray },
   empty: { marginTop: 40, alignItems: 'center', gap: 8 },
   emptyText: { fontSize: 12, color: C.gray },
-  ticketCardCollapsed: { paddingVertical: 13 },
+  ticketCardCollapsed: { paddingVertical: 14 },
   ticketHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   ticketTitle: { fontSize: 14, fontWeight: '800', color: C.black },
   ticketMetaRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0 },
