@@ -275,13 +275,23 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
             return (
               <View key={ticket.id} style={[s.card, s.ticketCard, !isExpanded && s.ticketCardCollapsed]}>
                 <View style={s.ticketHead}>
-                  <View style={s.ticketMetaRow}>
-                    <Text style={s.ticketTitle}>{ticket.drawNo}회</Text>
-                    <View style={[s.statusBadge, { borderColor: statusColor(ticket) }]}>
-                      <Text style={[s.statusText, { color: statusColor(ticket) }]}>{getDrawStateLabel(ticket)}</Text>
+                  <View style={s.ticketInfoColumn}>
+                    <View style={s.ticketMetaRow}>
+                      <Text style={s.ticketTitle}>{ticket.drawNo}회</Text>
+                      <View style={[s.statusBadge, { borderColor: statusColor(ticket) }]}>
+                        <Text style={[s.statusText, { color: statusColor(ticket) }]}>{getDrawStateLabel(ticket)}</Text>
+                      </View>
+                      <View style={[s.resultBadge, ticket.status === 'settled' && resultSummary !== '낙첨' && s.resultBadgeWin]}>
+                        <Text style={[s.resultText, ticket.status === 'settled' && resultSummary !== '낙첨' && s.resultTextWin]}>{resultSummary}</Text>
+                      </View>
                     </View>
-                    <View style={[s.resultBadge, ticket.status === 'settled' && resultSummary !== '낙첨' && s.resultBadgeWin]}>
-                      <Text style={[s.resultText, ticket.status === 'settled' && resultSummary !== '낙첨' && s.resultTextWin]}>{resultSummary}</Text>
+
+                    <View style={s.ticketSummaryRow}>
+                      <View style={s.sourceChip}>
+                        <Ionicons name={ticket.source === 'qr' ? 'qr-code-outline' : 'create-outline'} size={11} color={C.gray} />
+                        <Text style={s.sourceChipText}>{ticket.source === 'qr' ? 'QR' : '수동'}</Text>
+                      </View>
+                      <Text style={s.ticketSub}>{ticket.games.length}게임 · {formatSavedDate(ticket.createdAt)}</Text>
                     </View>
                   </View>
 
@@ -300,14 +310,6 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
                       <Ionicons name="trash-outline" size={17} color={C.gray} />
                     </TouchableOpacity>
                   </View>
-                </View>
-
-                <View style={s.ticketSummaryRow}>
-                  <View style={s.sourceChip}>
-                    <Ionicons name={ticket.source === 'qr' ? 'qr-code-outline' : 'create-outline'} size={11} color={C.gray} />
-                    <Text style={s.sourceChipText}>{ticket.source === 'qr' ? 'QR' : '수동'}</Text>
-                  </View>
-                  <Text style={s.ticketSub}>{ticket.games.length}게임 · {formatSavedDate(ticket.createdAt)}</Text>
                 </View>
 
                 {isExpanded && ticket.draw && (
@@ -439,9 +441,10 @@ const s = StyleSheet.create({
   emptyText: { fontSize: 12, color: C.gray },
   ticketCard: { paddingVertical: 13 },
   ticketCardCollapsed: { paddingVertical: 13 },
-  ticketHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  ticketHead: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 },
+  ticketInfoColumn: { flex: 1, minHeight: 57, justifyContent: 'space-between', minWidth: 0 },
   ticketTitle: { fontSize: 14, fontWeight: '800', color: C.black },
-  ticketMetaRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0 },
+  ticketMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0 },
   sourceChip: { flexDirection: 'row', alignItems: 'center', gap: 3, borderWidth: 1, borderColor: C.border, backgroundColor: '#FFFFFF', borderRadius: 999, paddingHorizontal: 6, paddingVertical: 3 },
   sourceChipText: { fontSize: 10, fontWeight: '800', color: C.gray },
   ticketSub: { fontSize: 11, color: C.gray, marginTop: 3 },
@@ -455,7 +458,7 @@ const s = StyleSheet.create({
   resultTextWin: { color: C.win },
   ticketToggle: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.border },
   ticketToggleActive: { backgroundColor: C.black, borderColor: C.black },
-  ticketSummaryRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 9 },
+  ticketSummaryRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   drawInfo: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.border },
   drawLabel: { fontSize: 11, color: C.gray, marginBottom: 8 },
   drawBalls: { flexDirection: 'row', alignItems: 'center', gap: 5 },
