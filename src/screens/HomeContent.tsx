@@ -161,12 +161,12 @@ const s = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     zIndex: 2,
   },
-  headerActions: { position: 'relative', alignItems: 'flex-end', zIndex: 4 },
+  headerActions: { position: 'relative', alignItems: 'flex-end', justifyContent: 'flex-end', height: 56, zIndex: 4 },
   actionGroup: {
     position: 'relative',
     alignItems: 'flex-end',
     justifyContent: 'flex-end',
-    height: 53,
+    height: 56,
   },
   infoButton: {
     position: 'absolute',
