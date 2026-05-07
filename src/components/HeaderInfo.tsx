@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const C = {
   card: '#F7F7F7',
@@ -17,14 +17,18 @@ export default function HeaderInfo() {
         <Text style={s.infoButtonText}>i</Text>
       </TouchableOpacity>
       {isOpen && (
-        <View style={s.infoBubbleWrap}>
-          <View style={s.infoArrow} />
-          <View style={s.infoBubble}>
-            <Text style={s.infoText}>우주🪐의 기운을 모아</Text>
-            <Text style={s.infoText}>당첨을 기원합니다! 🙏</Text>
-            <Text style={s.infoEmail}>meetyuuu@gmail.com</Text>
-          </View>
-        </View>
+        <Modal transparent visible animationType="none" onRequestClose={() => setIsOpen(false)}>
+          <Pressable style={s.infoBackdrop} onPress={() => setIsOpen(false)}>
+            <View style={s.infoBubbleWrap} pointerEvents="box-none">
+              <View style={s.infoArrow} />
+              <View style={s.infoBubble}>
+                <Text style={s.infoText}>우주🪐의 기운을 모아</Text>
+                <Text style={s.infoText}>당첨을 기원합니다! 🙏</Text>
+                <Text style={s.infoEmail}>meetyuuu@gmail.com</Text>
+              </View>
+            </View>
+          </Pressable>
+        </Modal>
       )}
     </View>
   );
@@ -57,10 +61,13 @@ const s = StyleSheet.create({
     fontWeight: '700',
     color: C.gray,
   },
+  infoBackdrop: {
+    flex: 1,
+  },
   infoBubbleWrap: {
     position: 'absolute',
-    top: 15,
-    right: 0,
+    top: 80,
+    right: 20,
     alignItems: 'flex-end',
     zIndex: 2,
   },
