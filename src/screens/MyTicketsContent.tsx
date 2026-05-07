@@ -51,6 +51,7 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanLocked, setScanLocked] = useState(false);
   const [scanRawText, setScanRawText] = useState('');
+  const [compactTickets, setCompactTickets] = useState(false);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const refs = useRef<(TextInput | null)[]>([]);
 
@@ -232,7 +233,19 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
 
         <View style={s.listHead}>
           <Text style={s.sectionTitle}>저장한 번호</Text>
-          <Text style={s.dim}>{evaluatedTickets.length}장</Text>
+          <View style={s.listHeadRight}>
+            <Text style={s.dim}>{evaluatedTickets.length}장</Text>
+            {evaluatedTickets.length > 0 && (
+              <TouchableOpacity
+                style={[s.compactToggle, compactTickets && s.compactToggleActive]}
+                activeOpacity={0.75}
+                onPress={() => setCompactTickets(value => !value)}
+              >
+                <Ionicons name={compactTickets ? 'chevron-down' : 'chevron-up'} size={13} color={compactTickets ? '#FFFFFF' : C.black} />
+                <Text style={[s.compactToggleText, compactTickets && s.compactToggleTextActive]}>제목만</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         {evaluatedTickets.length === 0 ? (
@@ -242,7 +255,7 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
           </View>
         ) : (
           evaluatedTickets.map(ticket => (
-            <View key={ticket.id} style={s.card}>
+            <View key={ticket.id} style={[s.card, compactTickets && s.ticketCardCollapsed]}>
               <View style={s.ticketHead}>
                 <View>
                   <Text style={s.cardTitle}>{ticket.drawNo}회</Text>
@@ -267,7 +280,7 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
                 </View>
               </View>
 
-              {ticket.draw && (
+              {!compactTickets && ticket.draw && (
                 <View style={s.drawInfo}>
                   <Text style={s.drawLabel}>당첨번호</Text>
                   <View style={s.drawBalls}>
@@ -278,7 +291,7 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
                 </View>
               )}
 
-              {ticket.games.map((game, index) => (
+              {!compactTickets && ticket.games.map((game, index) => (
                 <View key={game.id} style={s.gameRow}>
                   <Text style={s.gameNo}>{String.fromCharCode(65 + index)}</Text>
                   <View style={s.ballsRow}>
@@ -373,8 +386,14 @@ const s = StyleSheet.create({
   listHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 16, marginTop: 16, marginBottom: 2 },
   sectionTitle: { fontSize: 13, fontWeight: '800', color: C.black },
   dim: { fontSize: 10, color: C.gray },
+  listHeadRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  compactToggle: { flexDirection: 'row', alignItems: 'center', gap: 3, borderRadius: 999, borderWidth: 1, borderColor: C.border, backgroundColor: '#FFFFFF', paddingHorizontal: 8, paddingVertical: 5 },
+  compactToggleActive: { backgroundColor: C.black, borderColor: C.black },
+  compactToggleText: { fontSize: 10, fontWeight: '800', color: C.black },
+  compactToggleTextActive: { color: '#FFFFFF' },
   empty: { marginTop: 40, alignItems: 'center', gap: 8 },
   emptyText: { fontSize: 12, color: C.gray },
+  ticketCardCollapsed: { paddingVertical: 12 },
   ticketHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   ticketMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
   sourceChip: { flexDirection: 'row', alignItems: 'center', gap: 3, borderWidth: 1, borderColor: C.border, backgroundColor: '#FFFFFF', borderRadius: 999, paddingHorizontal: 6, paddingVertical: 3 },
