@@ -166,7 +166,7 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
     setScannerLocked(false);
   }
 
-  async function saveQrText(rawText: string, successTitle = 'QR 등록 완료') {
+  async function saveQrText(rawText: string) {
     const parsed = parseLottoQr(rawText);
     if (!parsed) return false;
 
@@ -176,7 +176,7 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
     setScannerOpen(false);
     setScannerLocked(false);
     setScanRawText('');
-    setQrSuccessMessage(`${successTitle} · ${parsed.drawNo}회 ${parsed.games.length}게임 저장`);
+    setQrSuccessMessage(`${parsed.drawNo}회 ${parsed.games.length}게임 저장`);
     return true;
   }
 
@@ -273,7 +273,7 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
             const resultSummary = getResultSummary(ticket);
 
             return (
-              <View key={ticket.id} style={[s.card, !isExpanded && s.ticketCardCollapsed]}>
+              <View key={ticket.id} style={[s.card, s.ticketCard, !isExpanded && s.ticketCardCollapsed]}>
                 <View style={s.ticketHead}>
                   <View style={s.ticketMetaRow}>
                     <Text style={s.ticketTitle}>{ticket.drawNo}회</Text>
@@ -361,7 +361,7 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
                 <Ionicons name="close" size={22} color="#FFFFFF" />
               </TouchableOpacity>
               <Text style={s.scannerTitle}>로또 QR 스캔</Text>
-              <TouchableOpacity style={s.scannerIconBtn} onPress={() => setScanLocked(false)} activeOpacity={0.78}>
+              <TouchableOpacity style={s.scannerIconBtn} onPress={() => setScannerLocked(false)} activeOpacity={0.78}>
                 <Ionicons name="refresh" size={20} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
@@ -378,6 +378,9 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
                 </View>
                 <View style={s.scanShade} />
               </View>
+              <View style={s.scanHelpShade}>
+                <Text style={s.scannerHelp}>종이 로또 우측 상단 QR을 사각형 안에 맞춰주세요</Text>
+              </View>
               <View style={s.scanShade} />
             </View>
 
@@ -390,17 +393,18 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
                     <Text style={s.scanRetryText}>다시 스캔</Text>
                   </TouchableOpacity>
                 </View>
-              ) : (
-                <Text style={s.scannerHelp}>종이 로또 우측 상단 QR을 사각형 안에 맞춰주세요</Text>
-              )}
+              ) : null}
             </View>
           </View>
         </View>
       </Modal>
       {qrSuccessMessage ? (
-        <View pointerEvents="none" style={s.successToast}>
-          <Ionicons name="checkmark-circle" size={15} color="#FFFFFF" />
-          <Text style={s.successToastText}>{qrSuccessMessage}</Text>
+        <View pointerEvents="none" style={s.successOverlay}>
+          <View style={s.successCard}>
+            <Ionicons name="checkmark-circle" size={30} color="#FFFFFF" />
+            <Text style={s.successTitle}>QR 등록 완료</Text>
+            <Text style={s.successDetail}>{qrSuccessMessage}</Text>
+          </View>
         </View>
       ) : null}
     </View>
@@ -433,14 +437,15 @@ const s = StyleSheet.create({
   dim: { fontSize: 10, color: C.gray },
   empty: { marginTop: 40, alignItems: 'center', gap: 8 },
   emptyText: { fontSize: 12, color: C.gray },
-  ticketCardCollapsed: { paddingVertical: 14 },
+  ticketCard: { paddingVertical: 13 },
+  ticketCardCollapsed: { paddingVertical: 13 },
   ticketHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   ticketTitle: { fontSize: 14, fontWeight: '800', color: C.black },
   ticketMetaRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0 },
   sourceChip: { flexDirection: 'row', alignItems: 'center', gap: 3, borderWidth: 1, borderColor: C.border, backgroundColor: '#FFFFFF', borderRadius: 999, paddingHorizontal: 6, paddingVertical: 3 },
   sourceChipText: { fontSize: 10, fontWeight: '800', color: C.gray },
   ticketSub: { fontSize: 11, color: C.gray, marginTop: 3 },
-  ticketActions: { width: 30, alignItems: 'center', justifyContent: 'center', gap: 7 },
+  ticketActions: { width: 30, alignItems: 'center', justifyContent: 'center', gap: 9 },
   deleteButton: { width: 26, height: 22, alignItems: 'center', justifyContent: 'center' },
   statusBadge: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4 },
   statusText: { fontSize: 11, fontWeight: '700' },
@@ -450,7 +455,7 @@ const s = StyleSheet.create({
   resultTextWin: { color: C.win },
   ticketToggle: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.border },
   ticketToggleActive: { backgroundColor: C.black, borderColor: C.black },
-  ticketSummaryRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 7 },
+  ticketSummaryRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 9 },
   drawInfo: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.border },
   drawLabel: { fontSize: 11, color: C.gray, marginBottom: 8 },
   drawBalls: { flexDirection: 'row', alignItems: 'center', gap: 5 },
@@ -465,25 +470,28 @@ const s = StyleSheet.create({
   scannerRoot: { flex: 1, backgroundColor: '#000000' },
   camera: { flex: 1 },
   scannerOverlay: { ...StyleSheet.absoluteFillObject },
-  scannerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingTop: 54 },
+  scannerTop: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingTop: 54 },
   scannerIconBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
   scannerTitle: { fontSize: 16, fontWeight: '800', color: '#FFFFFF' },
-  scanMask: { flex: 1, marginTop: 28 },
+  scanMask: { ...StyleSheet.absoluteFillObject, zIndex: 0 },
   scanShade: { flex: 1, backgroundColor: 'rgba(0,0,0,0.58)' },
   scanMiddle: { height: 248, flexDirection: 'row' },
   scanFrame: { width: 248, height: 248 },
+  scanHelpShade: { height: 64, backgroundColor: 'rgba(0,0,0,0.58)', alignItems: 'center', justifyContent: 'flex-start', paddingTop: 14 },
   corner: { position: 'absolute', width: 38, height: 38, borderColor: '#FFFFFF' },
-  cornerTopLeft: { left: 0, top: 0, borderLeftWidth: 4, borderTopWidth: 4, borderTopLeftRadius: 18 },
-  cornerTopRight: { right: 0, top: 0, borderRightWidth: 4, borderTopWidth: 4, borderTopRightRadius: 18 },
-  cornerBottomLeft: { left: 0, bottom: 0, borderLeftWidth: 4, borderBottomWidth: 4, borderBottomLeftRadius: 18 },
-  cornerBottomRight: { right: 0, bottom: 0, borderRightWidth: 4, borderBottomWidth: 4, borderBottomRightRadius: 18 },
-  scannerBottom: { paddingHorizontal: 18, paddingBottom: 48 },
+  cornerTopLeft: { left: 0, top: 0, borderLeftWidth: 2, borderTopWidth: 2 },
+  cornerTopRight: { right: 0, top: 0, borderRightWidth: 2, borderTopWidth: 2 },
+  cornerBottomLeft: { left: 0, bottom: 0, borderLeftWidth: 2, borderBottomWidth: 2 },
+  cornerBottomRight: { right: 0, bottom: 0, borderRightWidth: 2, borderBottomWidth: 2 },
+  scannerBottom: { position: 'absolute', left: 18, right: 18, bottom: 48, zIndex: 2 },
   scannerHelp: { alignSelf: 'center', overflow: 'hidden', backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 10, fontSize: 12, fontWeight: '700', color: '#FFFFFF', textAlign: 'center' },
   scanResultCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14 },
   scanResultTitle: { fontSize: 13, fontWeight: '800', color: C.black },
   scanRawText: { marginTop: 8, fontSize: 11, lineHeight: 16, color: C.gray },
   scanRetryBtn: { marginTop: 12, alignItems: 'center', backgroundColor: C.black, borderRadius: 999, paddingVertical: 11 },
   scanRetryText: { fontSize: 13, fontWeight: '800', color: '#FFFFFF' },
-  successToast: { position: 'absolute', left: 18, right: 18, bottom: 92, minHeight: 42, borderRadius: 999, backgroundColor: 'rgba(26,26,26,0.92)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 14 },
-  successToastText: { fontSize: 12, fontWeight: '800', color: '#FFFFFF', textAlign: 'center' },
+  successOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', zIndex: 20 },
+  successCard: { minWidth: 190, borderRadius: 18, backgroundColor: 'rgba(26,26,26,0.94)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 22, paddingVertical: 18 },
+  successTitle: { marginTop: 9, fontSize: 15, fontWeight: '900', color: '#FFFFFF', textAlign: 'center' },
+  successDetail: { marginTop: 6, fontSize: 12, fontWeight: '700', color: '#FFFFFF', textAlign: 'center' },
 });
