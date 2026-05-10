@@ -80,6 +80,9 @@
       }
     },
     "owner": "meetyuuu",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "updates": {
       "enabled": false
     },
