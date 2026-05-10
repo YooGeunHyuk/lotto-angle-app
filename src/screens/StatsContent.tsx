@@ -39,7 +39,7 @@ export default function StatsContent({ draws }: { draws: Draw[] }) {
   const gapTop = Object.entries(gaps).map(([n, g]) => ({ n: +n, g })).sort((a, b) => b.g - a.g).slice(0, 10);
   const oddEvenSorted = Object.entries(oddEven).sort((a, b) => b[1] - a[1]);
   const recent10 = useMemo(() => [...draws].slice(-10).reverse(), [draws]);
-  const [recentExpanded, setRecentExpanded] = useState(true);
+  const [recentExpanded, setRecentExpanded] = useState(false);
 
   const month = new Date().getMonth() + 1;
   const cs = month >= 3 && month <= 5 ? 'spring' : month >= 6 && month <= 8 ? 'summer' : month >= 9 && month <= 11 ? 'fall' : 'winter';
