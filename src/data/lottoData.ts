@@ -58,18 +58,30 @@ function normalizeOfficialDraw(raw: unknown): Draw | null {
 }
 
 function normalizeDraws(raw: unknown): Draw[] {
-  if (!Array.isArray(raw)) return [];
-  return raw
+  const draws = Array.isArray(raw) ? raw : (raw as { draws?: unknown[] })?.draws;
+  if (!Array.isArray(draws)) return [];
+  return draws
     .map(normalizeDraw)
     .filter((draw): draw is Draw => Boolean(draw))
     .sort((a, b) => a.drwNo - b.drwNo);
+}
+
+function parseRemoteDrawsPayload(payload: string): unknown {
+  try {
+    return JSON.parse(payload);
+  } catch {
+    return JSON.parse(payload.trim().replace(/\]\s*\[/g, ','));
+  }
 }
 
 async function fetchOfficialDraw(drawNo: number): Promise<Draw | null> {
   try {
     const response = await fetch(`${OFFICIAL_LOTTO_URL}&drwNo=${drawNo}`, {
       headers: {
-        Accept: 'application/json, text/plain, */*',
+        Accept: 'application/json, text/javascript, */*; q=0.01',
+        Referer: 'https://www.dhlottery.co.kr/gameResult.do?method=byWin',
+        'User-Agent': 'Mozilla/5.0',
+        'X-Requested-With': 'XMLHttpRequest',
       },
     });
     if (!response.ok) return null;
@@ -102,15 +114,22 @@ export async function getRemoteDraws(): Promise<Draw[]> {
       return officialUpdates;
     }
 
+    const remoteCandidates: Draw[][] = [];
     for (const url of REMOTE_LOTTO_URLS) {
       const response = await fetch(`${url}?t=${Date.now()}`);
       if (!response.ok) continue;
 
-      const draws = normalizeDraws(await response.json());
+      const draws = normalizeDraws(parseRemoteDrawsPayload(await response.text()));
       if (draws.length > 0) {
-        await AsyncStorage.setItem(REMOTE_DRAWS_CACHE_KEY, JSON.stringify(draws));
-        return draws;
+        remoteCandidates.push(draws);
       }
+    }
+
+    const newestRemoteDraws = remoteCandidates
+      .sort((a, b) => (b[b.length - 1]?.drwNo ?? 0) - (a[a.length - 1]?.drwNo ?? 0))[0];
+    if (newestRemoteDraws) {
+      await AsyncStorage.setItem(REMOTE_DRAWS_CACHE_KEY, JSON.stringify(newestRemoteDraws));
+      return newestRemoteDraws;
     }
 
     throw new Error('Remote lotto data was not available');

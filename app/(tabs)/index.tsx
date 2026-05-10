@@ -8,7 +8,7 @@ import StatsContent from '@/src/screens/StatsContent';
 import SumGeneratorContent from '@/src/screens/SumGeneratorContent';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { AppState, Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context'; // 🌟 여기서 한 번만 사용
 
 const { width } = Dimensions.get('window');
@@ -47,6 +47,16 @@ export default function App() {
 
   useEffect(() => {
     loadDraws();
+  }, [loadDraws]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active') {
+        loadDraws();
+      }
+    });
+
+    return () => subscription.remove();
   }, [loadDraws]);
 
   const goTo = (p: number) => {
