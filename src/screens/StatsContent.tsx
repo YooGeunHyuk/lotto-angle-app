@@ -62,9 +62,9 @@ export default function StatsContent({ draws }: { draws: Draw[] }) {
                 <Text style={s.recentDate}>{d.drwNoDate}</Text>
               </View>
               <View style={s.recentBalls}>
-                {d.numbers.map((n, i) => <Ball key={i} num={n} size={24} />)}
+                {d.numbers.map((n, i) => <Ball key={i} num={n} size={36} />)}
                 <Text style={s.recentPlus}>+</Text>
-                <Ball num={d.bonus} size={24} />
+                <Ball num={d.bonus} size={36} />
               </View>
             </View>
           ))}
@@ -206,10 +206,10 @@ const s = StyleSheet.create({
   freqFill: { height: '100%', borderRadius: 3 },
   freqNum: { fontSize: 11, color: C.black, width: 32, textAlign: 'right' },
   freqPct: { fontSize: 10, color: C.gray, width: 38, textAlign: 'right' },
-  recentRow: { paddingVertical: 10, gap: 6 },
+  recentRow: { paddingVertical: 12, gap: 8 },
   recentMeta: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
   recentDrwNo: { fontSize: 12, fontWeight: '700', color: C.black },
   recentDate: { fontSize: 10, color: C.gray },
-  recentBalls: { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
-  recentPlus: { fontSize: 11, color: C.gray, marginHorizontal: 2 },
+  recentBalls: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+  recentPlus: { fontSize: 14, color: C.gray, marginHorizontal: 2 },
 });
