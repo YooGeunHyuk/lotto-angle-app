@@ -1,5 +1,6 @@
-import React, { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useMemo, useState } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AdBanner from '../components/AdBanner';
 import HeaderInfo from '../components/HeaderInfo';
 import ScreenHeader from '../components/ScreenHeader';
@@ -38,6 +39,7 @@ export default function StatsContent({ draws }: { draws: Draw[] }) {
   const gapTop = Object.entries(gaps).map(([n, g]) => ({ n: +n, g })).sort((a, b) => b.g - a.g).slice(0, 10);
   const oddEvenSorted = Object.entries(oddEven).sort((a, b) => b[1] - a[1]);
   const recent10 = useMemo(() => [...draws].slice(-10).reverse(), [draws]);
+  const [recentExpanded, setRecentExpanded] = useState(true);
 
   const month = new Date().getMonth() + 1;
   const cs = month >= 3 && month <= 5 ? 'spring' : month >= 6 && month <= 8 ? 'summer' : month >= 9 && month <= 11 ? 'fall' : 'winter';
@@ -52,22 +54,33 @@ export default function StatsContent({ draws }: { draws: Draw[] }) {
       >
         <ScreenHeader title="통계" subtitle={`${total}회차 분석`} right={<HeaderInfo />} />
 
-        {/* 최근 10회차 */}
+        {/* 최근 10회차 (토글) */}
         <View style={s.card}>
-          <Text style={s.cardTitle}>최근 10회차</Text>
-          {recent10.map((d, index) => (
-            <View key={d.drwNo} style={[s.recentRow, index > 0 && s.rowDivider]}>
-              <View style={s.recentMeta}>
-                <Text style={s.recentDrwNo}>{d.drwNo}회</Text>
-                <Text style={s.recentDate}>{d.drwNoDate}</Text>
-              </View>
-              <View style={s.recentBalls}>
-                {d.numbers.map((n, i) => <Ball key={i} num={n} size={36} />)}
-                <Text style={s.recentPlus}>+</Text>
-                <Ball num={d.bonus} size={36} />
-              </View>
+          <TouchableOpacity
+            style={s.recentToggle}
+            onPress={() => setRecentExpanded(prev => !prev)}
+            activeOpacity={0.6}
+          >
+            <Text style={s.cardTitleNoMargin}>최근 10회차</Text>
+            <Ionicons name={recentExpanded ? 'chevron-up' : 'chevron-down'} size={16} color={C.gray} />
+          </TouchableOpacity>
+          {recentExpanded && (
+            <View style={s.recentBody}>
+              {recent10.map((d, index) => (
+                <View key={d.drwNo} style={[s.recentRow, index > 0 && s.rowDivider]}>
+                  <View style={s.recentMeta}>
+                    <Text style={s.recentDrwNo}>{d.drwNo}회</Text>
+                    <Text style={s.recentDate}>{d.drwNoDate}</Text>
+                  </View>
+                  <View style={s.recentBalls}>
+                    {d.numbers.map((n, i) => <Ball key={i} num={n} size={36} />)}
+                    <Text style={s.recentPlus}>+</Text>
+                    <Ball num={d.bonus} size={36} />
+                  </View>
+                </View>
+              ))}
             </View>
-          ))}
+          )}
         </View>
 
         {/* 합계 */}
@@ -206,6 +219,9 @@ const s = StyleSheet.create({
   freqFill: { height: '100%', borderRadius: 3 },
   freqNum: { fontSize: 11, color: C.black, width: 32, textAlign: 'right' },
   freqPct: { fontSize: 10, color: C.gray, width: 38, textAlign: 'right' },
+  recentToggle: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cardTitleNoMargin: { fontSize: 13, fontWeight: '700', color: C.black },
+  recentBody: { marginTop: 6 },
   recentRow: { paddingVertical: 12, gap: 8 },
   recentMeta: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
   recentDrwNo: { fontSize: 12, fontWeight: '700', color: C.black },
