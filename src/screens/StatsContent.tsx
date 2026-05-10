@@ -37,6 +37,7 @@ export default function StatsContent({ draws }: { draws: Draw[] }) {
 
   const gapTop = Object.entries(gaps).map(([n, g]) => ({ n: +n, g })).sort((a, b) => b.g - a.g).slice(0, 10);
   const oddEvenSorted = Object.entries(oddEven).sort((a, b) => b[1] - a[1]);
+  const recent10 = useMemo(() => [...draws].slice(-10).reverse(), [draws]);
 
   const month = new Date().getMonth() + 1;
   const cs = month >= 3 && month <= 5 ? 'spring' : month >= 6 && month <= 8 ? 'summer' : month >= 9 && month <= 11 ? 'fall' : 'winter';
@@ -50,6 +51,24 @@ export default function StatsContent({ draws }: { draws: Draw[] }) {
         contentContainerStyle={s.content}
       >
         <ScreenHeader title="통계" subtitle={`${total}회차 분석`} right={<HeaderInfo />} />
+
+        {/* 최근 10회차 */}
+        <View style={s.card}>
+          <Text style={s.cardTitle}>최근 10회차</Text>
+          {recent10.map((d, index) => (
+            <View key={d.drwNo} style={[s.recentRow, index > 0 && s.rowDivider]}>
+              <View style={s.recentMeta}>
+                <Text style={s.recentDrwNo}>{d.drwNo}회</Text>
+                <Text style={s.recentDate}>{d.drwNoDate}</Text>
+              </View>
+              <View style={s.recentBalls}>
+                {d.numbers.map((n, i) => <Ball key={i} num={n} size={24} />)}
+                <Text style={s.recentPlus}>+</Text>
+                <Ball num={d.bonus} size={24} />
+              </View>
+            </View>
+          ))}
+        </View>
 
         {/* 합계 */}
         <View style={s.card}>
@@ -187,4 +206,10 @@ const s = StyleSheet.create({
   freqFill: { height: '100%', borderRadius: 3 },
   freqNum: { fontSize: 11, color: C.black, width: 32, textAlign: 'right' },
   freqPct: { fontSize: 10, color: C.gray, width: 38, textAlign: 'right' },
+  recentRow: { paddingVertical: 10, gap: 6 },
+  recentMeta: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
+  recentDrwNo: { fontSize: 12, fontWeight: '700', color: C.black },
+  recentDate: { fontSize: 10, color: C.gray },
+  recentBalls: { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
+  recentPlus: { fontSize: 11, color: C.gray, marginHorizontal: 2 },
 });
