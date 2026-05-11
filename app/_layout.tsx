@@ -4,6 +4,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
+import { loadLuckyStores } from '@/src/data/luckyStores';
 import { ensureNotificationPermission, registerBackgroundDrawCheck } from '@/src/services/notifications';
 
 export const unstable_settings = {
@@ -19,6 +20,7 @@ export default function RootLayout() {
     (async () => {
       await ensureNotificationPermission();
       await registerBackgroundDrawCheck();
+      loadLuckyStores().catch(() => {});
     })();
   }, []);
 

@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useReducer, useState } from 'react';
 import { FlatList, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AdBanner from '../components/AdBanner';
 import HeaderInfo from '../components/HeaderInfo';
 import ScreenHeader from '../components/ScreenHeader';
-import { LuckyStore, luckyStorePayload, nationalLuckyStores, storeSummary } from '../data/luckyStores';
+import { LuckyStore, loadLuckyStores, luckyStorePayload, nationalLuckyStores, storeSummary, subscribeLuckyStores } from '../data/luckyStores';
 
 const C = { bg: '#FFFFFF', card: '#F7F7F7', border: '#EEEEEE', black: '#1A1A1A', gray: '#999999', dim: '#CCCCCC', accent: '#D94F2A' };
 
@@ -220,7 +220,14 @@ export default function LuckyMapContent({ isActive = true }: { isActive?: boolea
   const [showMap, setShowMap] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState<string | undefined>();
   const [selectedDistrict, setSelectedDistrict] = useState<string | undefined>();
-  const nationalStores = useMemo(() => nationalLuckyStores(), []);
+  // 명당 데이터가 백그라운드에서 갱신되면 강제 리렌더로 새 데이터 반영
+  const [dataVersion, bumpDataVersion] = useReducer((v: number) => v + 1, 0);
+  useEffect(() => {
+    loadLuckyStores().catch(() => {});
+    const unsubscribe = subscribeLuckyStores(bumpDataVersion);
+    return () => unsubscribe();
+  }, []);
+  const nationalStores = useMemo(() => nationalLuckyStores(), [dataVersion]);
   const regionSummaries = useMemo(() => buildRegions(nationalStores), [nationalStores]);
   const districtSummaries = useMemo(() => selectedRegion ? buildDistricts(nationalStores, selectedRegion) : [], [nationalStores, selectedRegion]);
   const regionalStores = useMemo(() => sortStores(storesInRegion(nationalStores, selectedRegion, selectedDistrict)), [nationalStores, selectedDistrict, selectedRegion]);

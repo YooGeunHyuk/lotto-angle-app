@@ -3,8 +3,10 @@ name: Update lucky store data
 on:
   workflow_dispatch:
   schedule:
-    # Run after the weekly draw data update window in Korea.
+    # KST 토요일 23:00 + 일요일 10:00 + 월요일 09:00 — 명당 정보가 늦게 떠도 잡히게.
     - cron: '0 14 * * 6'
+    - cron: '0 1 * * 0'
+    - cron: '0 0 * * 1'
 
 permissions:
   contents: write

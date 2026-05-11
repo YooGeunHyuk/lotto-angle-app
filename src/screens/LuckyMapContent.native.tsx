@@ -1,12 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { FlatList, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import AdBanner from '../components/AdBanner';
 import HeaderInfo from '../components/HeaderInfo';
 import ScreenHeader from '../components/ScreenHeader';
-import { distanceKm, LuckyStore, LuckyStoreMode, LuckyStoreWithDistance, luckyStorePayload, luckyStores, nationalLuckyStores, nearbyLuckyStores, StoreLocation, storeSummary } from '../data/luckyStores';
+import { distanceKm, LuckyStore, LuckyStoreMode, LuckyStoreWithDistance, loadLuckyStores, luckyStorePayload, luckyStores, nationalLuckyStores, nearbyLuckyStores, StoreLocation, storeSummary, subscribeLuckyStores } from '../data/luckyStores';
 
 const C = { bg: '#FFFFFF', card: '#F7F7F7', border: '#EEEEEE', black: '#1A1A1A', gray: '#999999', dim: '#CCCCCC', accent: '#D94F2A', green: '#137A4A' };
 const KOREA_REGION = { latitude: 36.4203004, longitude: 128.31796, latitudeDelta: 5.2, longitudeDelta: 4.2 };
@@ -450,10 +450,18 @@ export default function LuckyMapContent({ isActive = true }: { isActive?: boolea
   const [retailAreaLabel, setRetailAreaLabel] = useState('');
   const [selectedId, setSelectedId] = useState<string | undefined>();
 
-  const nearbyLuckyBase = useMemo(() => location ? nearbyLuckyStores(location, 'all') : [], [location]);
+  // 명당 데이터가 백그라운드에서 갱신되면 강제 리렌더
+  const [dataVersion, bumpDataVersion] = useReducer((v: number) => v + 1, 0);
+  useEffect(() => {
+    loadLuckyStores().catch(() => {});
+    const unsubscribe = subscribeLuckyStores(bumpDataVersion);
+    return () => unsubscribe();
+  }, []);
+
+  const nearbyLuckyBase = useMemo(() => location ? nearbyLuckyStores(location, 'all') : [], [location, dataVersion]);
   const nearbyLucky = useMemo(() => sortNearbyLuckyByOption(nearbyLuckyBase, nearbySort), [nearbyLuckyBase, nearbySort]);
-  const nationalStores = useMemo(() => nationalLuckyStores(), []);
-  const recentStores = useMemo(() => recentRoundStores(), []);
+  const nationalStores = useMemo(() => nationalLuckyStores(), [dataVersion]);
+  const recentStores = useMemo(() => recentRoundStores(), [dataVersion]);
   const regionSummaries = useMemo(() => buildRegionSummaries(nationalStores), [nationalStores]);
   const districtSummaries = useMemo(() => selectedRegion ? buildDistrictSummaries(nationalStores, selectedRegion) : [], [nationalStores, selectedRegion]);
   const regionalStoreSelection = useMemo(() => sortStoresByWins(storesInRegion(nationalStores, selectedRegion, selectedDistrict)), [nationalStores, selectedDistrict, selectedRegion]);

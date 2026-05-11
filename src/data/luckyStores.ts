@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import rawData from '../../data/lucky_stores.json';
 
 export interface LuckyStore {
@@ -42,8 +43,78 @@ export interface LuckyStoreWithDistance extends LuckyStore {
   distanceKm: number;
 }
 
-export const luckyStorePayload = rawData as LuckyStorePayload;
-export const luckyStores = luckyStorePayload.stores;
+const REMOTE_LUCKY_STORES_URL =
+  'https://raw.githubusercontent.com/YooGeunHyuk/lotto-angle-app/main/data/lucky_stores.json';
+const CACHE_KEY = '@lotto/luckyStores.v1';
+const FETCH_TIMEOUT_MS = 15000;
+
+// 모듈 변수로 두면 함수들이 매번 최신 데이터를 참조할 수 있고,
+// 화면이 import한 export 도 mutate된 값을 보게 된다.
+export let luckyStorePayload: LuckyStorePayload = rawData as LuckyStorePayload;
+export let luckyStores: LuckyStore[] = luckyStorePayload.stores;
+
+const listeners = new Set<() => void>();
+
+export function subscribeLuckyStores(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+function setPayload(p: LuckyStorePayload): void {
+  luckyStorePayload = p;
+  luckyStores = p.stores;
+  listeners.forEach(l => {
+    try { l(); } catch { /* swallow */ }
+  });
+}
+
+function isValidPayload(p: unknown): p is LuckyStorePayload {
+  if (!p || typeof p !== 'object') return false;
+  const x = p as Record<string, unknown>;
+  return Array.isArray(x.stores) && typeof x.latestRound === 'number';
+}
+
+let initialized = false;
+
+export async function loadLuckyStores(): Promise<void> {
+  // 1) 첫 호출일 때 AsyncStorage 캐시 적용
+  if (!initialized) {
+    initialized = true;
+    try {
+      const cached = await AsyncStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (isValidPayload(parsed) && parsed.latestRound > luckyStorePayload.latestRound) {
+          setPayload(parsed);
+        }
+      }
+    } catch {
+      // ignore corrupted cache
+    }
+  }
+
+  // 2) 원격에서 최신 데이터 시도. 실패해도 조용히 fallback.
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    const res = await fetch(`${REMOTE_LUCKY_STORES_URL}?t=${Date.now()}`, {
+      method: 'GET',
+      cache: 'no-cache',
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (isValidPayload(data) && data.latestRound > luckyStorePayload.latestRound) {
+      setPayload(data);
+      AsyncStorage.setItem(CACHE_KEY, JSON.stringify(data)).catch(() => {});
+    }
+  } catch {
+    // 네트워크 실패 — 현재 표시 중인 데이터(번들 또는 캐시) 유지
+  }
+}
 
 export function filterLuckyStores(filter: StoreRankFilter): LuckyStore[] {
   if (filter === 'first') return luckyStores.filter(store => store.firstWins > 0);

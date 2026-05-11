@@ -3,8 +3,9 @@ name: Update lotto data
 on:
   workflow_dispatch:
   schedule:
-    # Lotto 6/45 results are usually available Saturday night in Korea.
+    # KST 토요일 22:30 + 일요일 09:00 — 동행복권 갱신이 늦더라도 잡히게.
     - cron: '30 13 * * 6'
+    - cron: '0 0 * * 0'
 
 permissions:
   contents: write
