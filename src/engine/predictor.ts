@@ -42,8 +42,7 @@ interface ComputedScores {
 
 function computeScores(draws: Draw[]): ComputedScores {
   const total = draws.length;
-  const lastDrwNo = draws[draws.length - 1].drwNo;
-  const nextDrwNo = lastDrwNo + 1;
+  const nextDrwNo = draws[draws.length - 1].drwNo + 1;
 
   // 전체 빈도
   const freq: Record<number, number> = {};
@@ -113,14 +112,14 @@ function computeScores(draws: Draw[]): ComputedScores {
   const sumMin = sums[Math.floor(total * 0.25)];
   const sumMax = sums[Math.floor(total * 0.75)];
 
-  const topByRecent = Object.entries(recentFreq).sort((a, b) => +b[1] - +a[1]).slice(0, 3).map(([n]) => `${n}번`);
-
   const reasons = [
-    `최근 50회 핫 번호 우선 반영 (${topByRecent.join(', ')})`,
-    `1세트는 핫 위주 · 2세트는 장기 미출현 콜드 위주 · 3~5세트는 균형`,
-    `연속 번호 1쌍은 자연스럽게 포함 (역대 약 50%)`,
-    `직전 ${lastDrwNo}회차 번호는 가볍게 회피`,
-    `세트 간 중복 최소화 + 합계 ${sumMin}~${sumMax} 내 최적화`,
+    '최근 출현 흐름과 전체 누적 빈도를 함께 분석',
+    '번호 간 동반 출현 패턴(페어) 고려',
+    '오래 안 나온 번호와 계절별 흐름 보조 참고',
+    '연속 번호 흐름 자연스럽게 반영',
+    '직전 회차 번호는 가볍게 회피',
+    '번호대·홀짝·합계 분포의 균형 유지',
+    '5세트는 서로 다른 관점으로 구성, 중복 최소화',
   ];
 
   return { scoreMap, recentFreq, gap, sumMin, sumMax, reasons };

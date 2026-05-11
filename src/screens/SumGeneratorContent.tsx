@@ -42,12 +42,11 @@ export default function SumGeneratorContent({ draws, setParentScrollEnabled, onT
   const [saving, setSaving] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // 🌟 분석 기준 데이터 유지
   const analysisReasons = [
-    `설정하신 합계 범위(${values[0]}~${values[1]})를 최우선으로 반영했습니다.`,
-    "역대 당첨 번호의 합계 분포 데이터를 기반으로 필터링되었습니다.",
-    "번호대별(10단위) 균형 배분 원칙을 적용하여 조합되었습니다.",
-    "최근 5주간 출현 빈도가 높은 번호와 낮은 번호를 적절히 배합했습니다."
+    '사용자가 지정한 합계 범위 내에서 우선 필터링',
+    '역대 당첨 번호의 합계 분포 흐름 참고',
+    '번호대(1-9·10-19·20-29·30-39·40-45) 균형 고려',
+    '최근 출현 흐름과 누적 빈도 함께 반영',
   ];
 
   const generateBySum = () => {
