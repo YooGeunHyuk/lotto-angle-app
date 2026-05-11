@@ -17,7 +17,7 @@
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "내 주변 로또 판매점과 당첨 이력 판매점을 보여주기 위해 현재 위치를 사용합니다.",
         "NSCameraUsageDescription": "구매한 로또 QR을 스캔해 내 번호에 등록하기 위해 카메라를 사용합니다.",
-        "UIBackgroundModes": ["fetch", "processing"]
+        "UIBackgroundModes": ["fetch"]
       }
     },
     "android": {
