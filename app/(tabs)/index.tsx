@@ -1,5 +1,6 @@
 import { allDraws, Draw, getRemoteDraws } from '@/src/data/lottoData';
 import { getUserDraws } from '@/src/data/drawStore';
+import { checkAndNotifyForeground } from '@/src/services/notifications';
 import FixedPickContent from '@/src/screens/FixedPickContent';
 import HomeContent from '@/src/screens/HomeContent';
 import LuckyMapContent from '@/src/screens/LuckyMapContent';
@@ -42,7 +43,10 @@ export default function App() {
       getRemoteDraws(),
       getUserDraws(),
     ]);
-    setDraws(mergeDraws(allDraws, remoteDraws, userDraws));
+    const merged = mergeDraws(allDraws, remoteDraws, userDraws);
+    setDraws(merged);
+    // 새 회차 감지 시 알림 (권한 있을 때만, 첫 실행 때는 기준선만 저장)
+    checkAndNotifyForeground(merged).catch(() => {});
   }, []);
 
   useEffect(() => {
