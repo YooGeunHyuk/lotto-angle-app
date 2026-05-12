@@ -136,8 +136,14 @@ function bandOf(n: number): number {
 function diversityScore(numbers: number[]): number {
   const bands = new Set(numbers.map(bandOf));
   const oddCount = numbers.filter(n => n % 2 !== 0).length;
-  const oddEvenBalance = oddCount >= 2 && oddCount <= 4 ? 0.35 : -0.25;
-  return bands.size * 0.28 + oddEvenBalance;
+  // 홀짝은 한쪽 극단(6:0 / 5:1 등)만 살짝 디스카운트, 그 외엔 중립
+  const oddEvenBalance = oddCount >= 2 && oddCount <= 4 ? 0.05 : -0.20;
+  // 번호대 다양성: 한 구간에만 몰려있을 때만 감점, 충분히 흩어져 있으면 가산 없음.
+  // 5개 구간을 다 채우라는 강한 인센티브가 40-45 구간을 강제로 끌어오던 문제 제거.
+  let bandPenalty = 0;
+  if (bands.size <= 1) bandPenalty = -0.40;
+  else if (bands.size === 2) bandPenalty = -0.10;
+  return bandPenalty + oddEvenBalance;
 }
 
 // 연속 번호 1쌍을 자연스럽게 포함하도록 유도 (역대 약 50% 회차에 1쌍 포함).
