@@ -1,11 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AdBanner from '../components/AdBanner';
 import HeaderInfo from '../components/HeaderInfo';
 import ScreenHeader from '../components/ScreenHeader';
 import { Draw } from '../data/lottoData';
 import { saveRecommendedTicket } from '../data/recommendedTicket';
+import { PENDING_GAMES_LIMIT } from '../data/ticketStore';
+import { usePendingPicks } from '../hooks/usePendingPicks';
 import { generateFixedSets } from '../engine/predictor';
 import { Ball } from './HomeContent';
 
@@ -29,6 +31,25 @@ export default function FixedPickContent({
   const refs = useRef<(TextInput | null)[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
   const [analysisReasons, setAnalysisReasons] = useState<string[]>([]);
+  const { pending, isSelected, toggleSelect } = usePendingPicks();
+
+  const toggleSelectSet = useCallback(async (numbers: number[]) => {
+    const res = await toggleSelect(numbers, nextDrwNo);
+    if (!res) return;
+    if (res.type === 'committed') {
+      onTicketSaved?.();
+      Alert.alert(
+        '내 번호 시트 완성! 🎯',
+        `5개 번호가 모여서 ${nextDrwNo}회차 내 번호로 저장되었습니다.`,
+        [
+          { text: '확인' },
+          { text: '내 번호 보기', onPress: onOpenTickets },
+        ],
+      );
+    } else if (res.type === 'full') {
+      Alert.alert('가득 찼어요', '5개가 모이면 자동으로 시트로 저장됩니다.');
+    }
+  }, [nextDrwNo, onOpenTickets, onTicketSaved, toggleSelect]);
 
   useEffect(() => {
     if (draws.length > 0) {
@@ -131,19 +152,36 @@ export default function FixedPickContent({
                 <Text style={s.savePickText}>{saving ? '저장 중' : '내 번호 저장'}</Text>
               </TouchableOpacity>
             </View>
-            {result.sets.map(set => (
-              <View key={set.setNo} style={s.setRow}>
-                <Text style={s.setNo}>{set.setNo}</Text>
-                <View style={s.ballsRow}>
-                  {set.numbers.map((n, i) => (
-                    <View key={i} style={parsed.includes(n) ? s.fixedWrap : undefined}>
-                      <Ball num={n} size={34} />
-                    </View>
-                  ))}
-                </View>
-                <Text style={s.sum}>{set.numbers.reduce((a, b) => a + b, 0)}</Text>
-              </View>
-            ))}
+            <Text style={s.pickHint}>
+              ☆ 표시를 눌러 마음에 드는 세트만 골라 모으세요. {pending.length}/{PENDING_GAMES_LIMIT}개 모이면 한 시트로 자동 저장됩니다.
+            </Text>
+            {result.sets.map(set => {
+              const selected = isSelected(set.numbers);
+              return (
+                <TouchableOpacity
+                  key={set.setNo}
+                  style={s.setRow}
+                  activeOpacity={0.6}
+                  onPress={() => toggleSelectSet(set.numbers)}
+                >
+                  <Text style={s.setNo}>{set.setNo}</Text>
+                  <View style={s.ballsRow}>
+                    {set.numbers.map((n, i) => (
+                      <View key={i} style={parsed.includes(n) ? s.fixedWrap : undefined}>
+                        <Ball num={n} size={34} />
+                      </View>
+                    ))}
+                  </View>
+                  <Text style={s.sum}>{set.numbers.reduce((a, b) => a + b, 0)}</Text>
+                  <Ionicons
+                    name={selected ? 'star' : 'star-outline'}
+                    size={18}
+                    color={selected ? C.logo : C.dim}
+                    style={s.starIcon}
+                  />
+                </TouchableOpacity>
+              );
+            })}
           </View>
         )}
 
@@ -187,6 +225,8 @@ const s = StyleSheet.create({
   savePickButton: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.black, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
   savePickText: { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
   setRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderTopWidth: 1, borderTopColor: C.border, gap: 6 },
+  starIcon: { marginLeft: 4 },
+  pickHint: { fontSize: 11, color: C.gray, lineHeight: 16, marginBottom: 4 },
   setNo: { fontSize: 11, fontWeight: '700', color: C.dim, width: 14 },
   ballsRow: { flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   sum: { fontSize: 11, color: C.gray, width: 28, textAlign: 'right' },

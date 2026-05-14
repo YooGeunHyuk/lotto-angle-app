@@ -1,23 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AdBanner from '../components/AdBanner';
 import ScreenHeader from '../components/ScreenHeader';
 import { Draw } from '../data/lottoData';
 import { saveRecommendedTicket } from '../data/recommendedTicket';
-import {
-  PendingGame,
-  PENDING_GAMES_LIMIT,
-  addPendingGame,
-  getPendingGames,
-  removePendingGame,
-} from '../data/ticketStore';
+import { PENDING_GAMES_LIMIT } from '../data/ticketStore';
+import { usePendingPicks } from '../hooks/usePendingPicks';
 import { generateFiveSets } from '../engine/predictor';
 import { ballBg, ballText } from '../utils/colors';
-
-function sortedKey(numbers: number[]): string {
-  return [...numbers].sort((a, b) => a - b).join(',');
-}
 
 const C = { bg: '#FFFFFF', card: '#F7F7F7', border: '#EEEEEE', black: '#1A1A1A', gray: '#999999', dim: '#CCCCCC', logo: '#D94F2A' };
 
@@ -47,26 +38,12 @@ export default function HomeContent({
   const [saving, setSaving] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
-  const [pending, setPending] = useState<PendingGame[]>([]);
-
-  // 마운트 시 임시 영역 로드
-  useEffect(() => {
-    getPendingGames().then(setPending).catch(() => {});
-  }, []);
-
-  const pendingKeys = new Set(pending.map(g => g.numbers.join(',')));
+  const { pending, isSelected, toggleSelect } = usePendingPicks();
 
   const toggleSelectSet = useCallback(async (numbers: number[]) => {
-    const key = sortedKey(numbers);
-    const existing = pending.find(g => g.numbers.join(',') === key);
-    if (existing) {
-      const updated = await removePendingGame(existing.id);
-      setPending(updated);
-      return;
-    }
-    const res = await addPendingGame(numbers, nextDrwNo);
+    const res = await toggleSelect(numbers, nextDrwNo);
+    if (!res) return;
     if (res.type === 'committed') {
-      setPending([]);
       onTicketSaved?.();
       Alert.alert(
         '내 번호 시트 완성! 🎯',
@@ -76,14 +53,11 @@ export default function HomeContent({
           { text: '내 번호 보기', onPress: onOpenTickets },
         ],
       );
-    } else if (res.type === 'added') {
-      setPending(res.games);
-    } else if (res.type === 'duplicate') {
-      // 이미 추가된 번호 — 별도 알림 없음
     } else if (res.type === 'full') {
       Alert.alert('가득 찼어요', '5개가 모이면 자동으로 시트로 저장됩니다.');
     }
-  }, [nextDrwNo, onOpenTickets, onTicketSaved, pending]);
+    // 'added' / 'duplicate' 는 별도 처리 불필요 (구독 패턴이 갱신)
+  }, [nextDrwNo, onOpenTickets, onTicketSaved, toggleSelect]);
 
   const regenerate = useCallback(() => {
     setBusy(true);
@@ -175,7 +149,7 @@ export default function HomeContent({
               ☆ 표시를 눌러 마음에 드는 세트만 골라 모으세요. {pending.length}/{PENDING_GAMES_LIMIT}개 모이면 한 시트로 자동 저장됩니다.
             </Text>
             {result.sets.map(set => {
-              const selected = pendingKeys.has(sortedKey(set.numbers));
+              const selected = isSelected(set.numbers);
               return (
                 <TouchableOpacity
                   key={set.setNo}

@@ -1,0 +1,707 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>Golf Play Rangefinder Prototype</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --green: #00e83b;
+        --text: #27313f;
+        --muted: rgba(39, 49, 63, 0.62);
+        --app-width: 100vw;
+        --app-height: 100svh;
+      }
+
+      * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+      }
+
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: #eef0f3;
+        color: var(--text);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        letter-spacing: 0;
+        overscroll-behavior: none;
+        position: fixed;
+        inset: 0;
+      }
+
+      button {
+        border: 0;
+        padding: 0;
+        color: inherit;
+        font: inherit;
+        background: transparent;
+      }
+
+      .stage {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: var(--app-width);
+        height: var(--app-height);
+        display: grid;
+        place-items: center;
+        background: #e8ebee;
+        overflow: hidden;
+      }
+
+      .phone {
+        position: relative;
+        width: min(var(--app-width), calc(var(--app-height) * 1320 / 2868));
+        height: min(var(--app-height), calc(var(--app-width) * 2868 / 1320));
+        overflow: hidden;
+        background: #fff;
+        box-shadow: 0 18px 60px rgba(20, 28, 36, 0.14);
+        touch-action: none;
+      }
+
+      .app-screen {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        pointer-events: none;
+        user-select: none;
+      }
+
+      .camera-window {
+        position: absolute;
+        left: 0;
+        top: 13.63%;
+        z-index: 2;
+        width: 100%;
+        height: 20.19%;
+        overflow: hidden;
+        background: #d9e7d2;
+        opacity: 1;
+        transition: opacity 180ms ease;
+      }
+
+      .camera-window.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .course {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        user-select: none;
+        pointer-events: none;
+        will-change: transform;
+        filter: saturate(1.07) contrast(1.03);
+      }
+
+      .camera-shade {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background:
+          radial-gradient(circle at 50% 50%, transparent 46%, rgba(0, 0, 0, 0.2) 100%),
+          linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 26%, rgba(0, 0, 0, 0.14));
+      }
+
+      .camera-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 5;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        pointer-events: none;
+        user-select: none;
+        transition: filter 160ms ease;
+      }
+
+      .camera-overlay.locking {
+        filter: drop-shadow(0 0 8px rgba(0, 232, 59, 0.5));
+      }
+
+      .sensor-status {
+        position: absolute;
+        left: 4%;
+        top: 6%;
+        z-index: 5;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        height: 22px;
+        padding: 0 7px;
+        border-radius: 999px;
+        background: rgba(10, 15, 14, 0.32);
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 10px;
+        font-weight: 800;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 160ms ease;
+      }
+
+      .sensor-status.show {
+        opacity: 1;
+      }
+
+      .sensor-status::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--green);
+        box-shadow: 0 0 10px rgba(0, 232, 59, 0.7);
+      }
+
+      .scan-box {
+        position: absolute;
+        z-index: 4;
+        width: 8.5%;
+        height: 31%;
+        transform: translate(-50%, -50%);
+        opacity: 0;
+        border: 2px solid var(--green);
+        border-radius: 7px;
+        box-shadow: 0 0 18px rgba(0, 232, 59, 0.38);
+        pointer-events: none;
+        transition: opacity 130ms ease;
+      }
+
+      .scan-box.visible {
+        opacity: 1;
+      }
+
+      .scan-box::before {
+        content: "";
+        position: absolute;
+        left: 12%;
+        right: 12%;
+        top: 10%;
+        height: 2px;
+        border-radius: 999px;
+        background: var(--green);
+        box-shadow: 0 0 12px rgba(0, 232, 59, 0.76);
+        animation: scan 720ms linear infinite;
+      }
+
+      @keyframes scan {
+        to {
+          transform: translateY(6900%);
+        }
+      }
+
+      .measure-hit {
+        position: absolute;
+        right: 5.2%;
+        bottom: 14.8%;
+        z-index: 8;
+        width: 22%;
+        aspect-ratio: 1;
+        cursor: pointer;
+      }
+
+      .reset-hit {
+        position: absolute;
+        left: 4.2%;
+        top: 7.1%;
+        z-index: 8;
+        width: 9%;
+        aspect-ratio: 1;
+        cursor: pointer;
+      }
+
+      .permission {
+        position: absolute;
+        inset: 0;
+        z-index: 20;
+        display: grid;
+        place-items: end center;
+        padding: 0 5.4% 7.4%;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(18, 26, 30, 0.28));
+      }
+
+      .permission-card {
+        width: 100%;
+        padding: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.74);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 18px 42px rgba(22, 33, 40, 0.16);
+        backdrop-filter: blur(18px);
+      }
+
+      .permission-card h1 {
+        margin: 0 0 8px;
+        font-size: clamp(18px, 4.8vw, 24px);
+        line-height: 1.2;
+      }
+
+      .permission-card p {
+        margin: 0 0 14px;
+        color: var(--muted);
+        font-size: clamp(12px, 3.2vw, 15px);
+        line-height: 1.5;
+      }
+
+      .start-btn {
+        width: 100%;
+        height: 48px;
+        border-radius: 8px;
+        background: #313946;
+        color: #fff;
+        font-weight: 850;
+        cursor: pointer;
+      }
+
+      .toast {
+        position: absolute;
+        left: 50%;
+        top: 35.2%;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        height: 34px;
+        padding: 0 12px;
+        border-radius: 999px;
+        background: rgba(25, 33, 39, 0.78);
+        color: #fff;
+        font-size: 12px;
+        font-weight: 800;
+        opacity: 0;
+        transform: translate(-50%, 10px);
+        transition:
+          opacity 160ms ease,
+          transform 160ms ease;
+        pointer-events: none;
+      }
+
+      .toast.show {
+        opacity: 1;
+        transform: translate(-50%, 0);
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      video {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      @media (min-width: 720px) {
+        .phone {
+          border-radius: 22px;
+        }
+      }
+
+      @media (max-width: 719px) {
+        .phone {
+          box-shadow: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="stage">
+      <section class="phone" id="phone" aria-label="Golf Play prototype">
+        <img class="app-screen" id="appScreen" src="./assets/golf-app-aim.png" alt="" draggable="false" />
+
+        <div class="camera-window" id="cameraWindow">
+          <img class="course" id="course" src="./assets/golf-green.jpg" alt="" draggable="false" />
+          <div class="camera-shade"></div>
+          <div class="scan-box" id="scanBox"></div>
+          <img class="camera-overlay" id="cameraOverlay" src="./assets/camera-overlay.png" alt="" draggable="false" />
+          <div class="sensor-status" id="sensorStatus">GYRO</div>
+        </div>
+
+        <video id="camera" autoplay muted playsinline></video>
+        <button class="reset-hit" id="resetBtn" type="button" aria-label="처음 상태로 돌아가기"></button>
+        <button class="measure-hit" id="measureBtn" type="button" aria-label="측정버튼"></button>
+        <div class="toast" id="toast">PIN LOCK</div>
+
+        <div class="permission" id="permission">
+          <div class="permission-card">
+            <h1>Golf Play 체험 시작</h1>
+            <p id="permissionMessage">브라우저 권한창이 뜨면 카메라와 동작 센서를 허용해 주세요.</p>
+            <button class="start-btn" id="startBtn" type="button">권한 허용하고 시작</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const phone = document.getElementById("phone");
+      const appScreen = document.getElementById("appScreen");
+      const cameraWindow = document.getElementById("cameraWindow");
+      const course = document.getElementById("course");
+      const camera = document.getElementById("camera");
+      const permission = document.getElementById("permission");
+      const permissionMessage = document.getElementById("permissionMessage");
+      const startBtn = document.getElementById("startBtn");
+      const measureBtn = document.getElementById("measureBtn");
+      const resetBtn = document.getElementById("resetBtn");
+      const cameraOverlay = document.getElementById("cameraOverlay");
+      const scanBox = document.getElementById("scanBox");
+      const toast = document.getElementById("toast");
+      const sensorStatus = document.getElementById("sensorStatus");
+
+      const pin = { x: 0.506, y: 0.574 };
+      const state = {
+        panX: 0,
+        panY: 0,
+        targetPanX: 0,
+        targetPanY: 0,
+        drag: null,
+        layout: null,
+        lockStartedAt: 0,
+        measured: false,
+        stream: null,
+        motionActive: false,
+        orientationActive: false,
+        orientationBase: null,
+        orientationPanBase: null,
+        motionLastAt: 0,
+      };
+
+      function clamp(value, min, max) {
+        return Math.min(max, Math.max(min, value));
+      }
+
+      function angleDelta(current, base) {
+        return ((((current - base) % 360) + 540) % 360) - 180;
+      }
+
+      function showSensorStatus(text) {
+        sensorStatus.textContent = text;
+        sensorStatus.classList.add("show");
+      }
+
+      function setPermissionMessage(text) {
+        permissionMessage.textContent = text;
+      }
+
+      function isLocalhost() {
+        return ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+      }
+
+      function syncViewportSize() {
+        const viewport = window.visualViewport;
+        const width = Math.floor(viewport?.width || window.innerWidth);
+        const height = Math.floor(viewport?.height || window.innerHeight);
+        document.documentElement.style.setProperty("--app-width", `${width}px`);
+        document.documentElement.style.setProperty("--app-height", `${height}px`);
+      }
+
+      async function tryEnterFullscreen() {
+        try {
+          if (!document.fullscreenElement && phone.requestFullscreen) {
+            await phone.requestFullscreen();
+          }
+        } catch (error) {
+          // iPhone Safari usually supports fullscreen only after adding the page to Home Screen.
+        }
+      }
+
+      function updateLayout() {
+        const bounds = cameraWindow.getBoundingClientRect();
+        const naturalW = course.naturalWidth || 2400;
+        const naturalH = course.naturalHeight || 1733;
+        const scale = Math.max((bounds.width * 1.34) / naturalW, (bounds.height * 1.14) / naturalH);
+        const width = naturalW * scale;
+        const height = naturalH * scale;
+        const maxX = Math.max(0, (width - bounds.width) / 2);
+        const maxY = Math.max(0, (height - bounds.height) / 2);
+
+        state.layout = { bounds, width, height, maxX, maxY };
+        course.style.width = `${width}px`;
+        course.style.height = `${height}px`;
+      }
+
+      function placePinNearAim(offsetX, offsetY) {
+        if (!state.layout) return;
+        const { bounds, width, height, maxX, maxY } = state.layout;
+        state.targetPanX = clamp(offsetX - width * (pin.x - 0.5), -maxX, maxX);
+        state.targetPanY = clamp(offsetY - height * (pin.y - 0.5), -maxY, maxY);
+        state.panX = state.targetPanX;
+        state.panY = state.targetPanY;
+      }
+
+      function render() {
+        if (!state.layout) updateLayout();
+        const { bounds, width, height, maxX, maxY } = state.layout;
+
+        state.panX += (state.targetPanX - state.panX) * 0.14;
+        state.panY += (state.targetPanY - state.panY) * 0.14;
+        course.style.transform = `translate3d(${-width / 2 + state.panX}px, ${-height / 2 + state.panY}px, 0)`;
+
+        const targetX = bounds.width / 2 + state.panX + width * (pin.x - 0.5);
+        const targetY = bounds.height / 2 + state.panY + height * (pin.y - 0.5);
+        scanBox.style.left = `${targetX}px`;
+        scanBox.style.top = `${targetY}px`;
+
+        const dx = targetX - bounds.width / 2;
+        const dy = targetY - bounds.height / 2;
+        const nearPin = Math.abs(dx) < bounds.width * 0.045 && Math.abs(dy) < bounds.height * 0.12;
+
+        if (!state.measured && nearPin) {
+          if (!state.lockStartedAt) state.lockStartedAt = performance.now();
+          scanBox.classList.add("visible");
+          cameraOverlay.classList.add("locking");
+          toast.classList.add("show");
+          if (performance.now() - state.lockStartedAt > 520) showResult();
+        } else if (!state.measured) {
+          state.lockStartedAt = 0;
+          scanBox.classList.remove("visible");
+          cameraOverlay.classList.remove("locking");
+          toast.classList.remove("show");
+        }
+
+        state.targetPanX = clamp(state.targetPanX, -maxX, maxX);
+        state.targetPanY = clamp(state.targetPanY, -maxY, maxY);
+        requestAnimationFrame(render);
+      }
+
+      async function requestCamera() {
+        if (!window.isSecureContext && !isLocalhost()) {
+          showSensorStatus("HTTPS 필요");
+          return false;
+        }
+        if (!navigator.mediaDevices?.getUserMedia) {
+          showSensorStatus("CAM OFF");
+          return false;
+        }
+        try {
+          state.stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: "environment" } },
+          });
+          camera.srcObject = state.stream;
+          return true;
+        } catch (error) {
+          showSensorStatus("CAM OFF");
+          return false;
+        }
+      }
+
+      async function requestMotion() {
+        try {
+          if (!window.isSecureContext && !isLocalhost()) {
+            showSensorStatus("HTTPS 필요");
+            return false;
+          }
+          const permissionRequests = [];
+          if (
+            typeof DeviceOrientationEvent !== "undefined" &&
+            typeof DeviceOrientationEvent.requestPermission === "function"
+          ) {
+            permissionRequests.push(DeviceOrientationEvent.requestPermission());
+          }
+          if (
+            typeof DeviceMotionEvent !== "undefined" &&
+            typeof DeviceMotionEvent.requestPermission === "function"
+          ) {
+            permissionRequests.push(DeviceMotionEvent.requestPermission());
+          }
+          const results = await Promise.all(permissionRequests);
+          if (results.some((result) => result !== "granted")) {
+            showSensorStatus(window.isSecureContext ? "GYRO OFF" : "HTTPS 필요");
+            return false;
+          }
+          window.addEventListener("deviceorientation", handleOrientation, true);
+          window.addEventListener("devicemotion", handleDeviceMotion, true);
+          showSensorStatus(window.isSecureContext ? "GYRO READY" : "HTTPS 필요");
+          return true;
+        } catch (error) {
+          showSensorStatus(window.isSecureContext ? "GYRO OFF" : "HTTPS 필요");
+          // Drag fallback remains available.
+          return false;
+        }
+      }
+
+      function handleOrientation(event) {
+        if (!state.layout || state.measured) return;
+        const alpha = typeof event.webkitCompassHeading === "number" ? event.webkitCompassHeading : event.alpha;
+        const beta = event.beta;
+        const gamma = event.gamma;
+        const hasHorizontal = typeof alpha === "number" || typeof gamma === "number";
+        const hasVertical = typeof beta === "number";
+        if (!hasHorizontal && !hasVertical) return;
+
+        if (!state.orientationBase) {
+          state.orientationBase = { alpha, beta, gamma };
+          state.orientationPanBase = { x: state.targetPanX, y: state.targetPanY };
+          state.orientationActive = true;
+          showSensorStatus("GYRO ON");
+          return;
+        }
+
+        const horizontalDelta =
+          typeof alpha === "number" && typeof state.orientationBase.alpha === "number"
+            ? angleDelta(alpha, state.orientationBase.alpha)
+            : (gamma ?? 0) - (state.orientationBase.gamma ?? 0);
+        const verticalDelta =
+          typeof beta === "number" && typeof state.orientationBase.beta === "number"
+            ? beta - state.orientationBase.beta
+            : 0;
+
+        state.targetPanX = clamp(
+          state.orientationPanBase.x - (horizontalDelta / 34) * state.layout.maxX,
+          -state.layout.maxX,
+          state.layout.maxX,
+        );
+        state.targetPanY = clamp(
+          state.orientationPanBase.y + (verticalDelta / 22) * state.layout.maxY,
+          -state.layout.maxY,
+          state.layout.maxY,
+        );
+      }
+
+      function handleDeviceMotion(event) {
+        if (!state.layout || state.measured || state.orientationActive) return;
+        const rotation = event.rotationRate;
+        if (!rotation) return;
+        const now = performance.now();
+        const elapsed = state.motionLastAt ? Math.min((now - state.motionLastAt) / 1000, 0.06) : 0;
+        state.motionLastAt = now;
+        const yaw = rotation.alpha || rotation.gamma || 0;
+        const pitch = rotation.beta || 0;
+        if (!yaw && !pitch) return;
+        state.motionActive = true;
+        showSensorStatus("GYRO ON");
+        state.targetPanX = clamp(state.targetPanX - yaw * elapsed * 6.5, -state.layout.maxX, state.layout.maxX);
+        state.targetPanY = clamp(state.targetPanY + pitch * elapsed * 4.5, -state.layout.maxY, state.layout.maxY);
+      }
+
+      function enableDrag() {
+        cameraWindow.addEventListener("pointerdown", (event) => {
+          if (state.measured) return;
+          state.drag = {
+            id: event.pointerId,
+            x: event.clientX,
+            y: event.clientY,
+            panX: state.targetPanX,
+            panY: state.targetPanY,
+          };
+          cameraWindow.setPointerCapture(event.pointerId);
+        });
+
+        cameraWindow.addEventListener("pointermove", (event) => {
+          if (!state.drag || state.drag.id !== event.pointerId || !state.layout || state.measured) return;
+          state.targetPanX = clamp(
+            state.drag.panX + event.clientX - state.drag.x,
+            -state.layout.maxX,
+            state.layout.maxX,
+          );
+          state.targetPanY = clamp(
+            state.drag.panY + event.clientY - state.drag.y,
+            -state.layout.maxY,
+            state.layout.maxY,
+          );
+        });
+
+        cameraWindow.addEventListener("pointerup", () => {
+          state.drag = null;
+        });
+      }
+
+      function showResult() {
+        state.measured = true;
+        appScreen.src = "./assets/golf-app-result.png";
+        cameraWindow.classList.add("hidden");
+        toast.classList.remove("show");
+        if ("vibrate" in navigator) navigator.vibrate([24, 34, 24]);
+      }
+
+      function resetDemo() {
+        state.measured = false;
+        state.lockStartedAt = 0;
+        state.motionActive = false;
+        state.orientationActive = false;
+        state.orientationBase = null;
+        state.orientationPanBase = null;
+        state.motionLastAt = 0;
+        appScreen.src = "./assets/golf-app-aim.png";
+        cameraWindow.classList.remove("hidden");
+        scanBox.classList.remove("visible");
+        cameraOverlay.classList.remove("locking");
+        toast.classList.remove("show");
+        updateLayout();
+        placePinNearAim(phone.clientWidth * 0.08, phone.clientHeight * 0.012);
+      }
+
+      startBtn.addEventListener("click", async () => {
+        syncViewportSize();
+        tryEnterFullscreen();
+        setPermissionMessage("권한 요청 중입니다. 브라우저 팝업이 뜨면 허용을 눌러주세요.");
+        permission.classList.add("hidden");
+        resetDemo();
+        const [cameraReady, motionReady] = await Promise.all([requestCamera(), requestMotion()]);
+        if (!cameraReady || !motionReady) {
+          permission.classList.remove("hidden");
+          if (!window.isSecureContext && !isLocalhost()) {
+            setPermissionMessage("이 주소에서는 권한창을 띄울 수 없습니다. HTTPS QR로 다시 열어주세요.");
+            showSensorStatus("HTTPS 필요");
+          } else {
+            setPermissionMessage(
+              !cameraReady
+                ? "카메라 권한이 필요합니다. 브라우저 설정에서 카메라를 허용해 주세요."
+                : "동작/방향 센서 권한이 필요합니다. 브라우저 권한창에서 허용해 주세요.",
+            );
+            showSensorStatus(!cameraReady ? "CAM OFF" : "GYRO OFF");
+          }
+        } else {
+          setPermissionMessage("브라우저 권한창이 뜨면 카메라와 동작 센서를 허용해 주세요.");
+        }
+      });
+
+      measureBtn.addEventListener("click", () => {
+        if (state.measured) resetDemo();
+        else showResult();
+      });
+
+      resetBtn.addEventListener("click", resetDemo);
+
+      window.addEventListener("resize", () => {
+        syncViewportSize();
+        updateLayout();
+      });
+      window.visualViewport?.addEventListener("resize", () => {
+        syncViewportSize();
+        updateLayout();
+      });
+      window.visualViewport?.addEventListener("scroll", syncViewportSize);
+      window.addEventListener("orientationchange", () => {
+        setTimeout(() => {
+          syncViewportSize();
+          resetDemo();
+        }, 250);
+      });
+      course.addEventListener("load", resetDemo);
+
+      enableDrag();
+      syncViewportSize();
+      updateLayout();
+      placePinNearAim(phone.clientWidth * 0.08, phone.clientHeight * 0.012);
+      render();
+    </script>
+  </body>
+</html>

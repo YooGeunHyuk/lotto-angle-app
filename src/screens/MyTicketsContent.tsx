@@ -6,8 +6,21 @@ import AdBanner from '../components/AdBanner';
 import HeaderInfo from '../components/HeaderInfo';
 import ScreenHeader from '../components/ScreenHeader';
 import { parseLottoQr } from '../data/lottoQr';
-import { buildTicket, deleteTicket, evaluateTicket, EvaluatedTicket, getSavedTickets, SavedTicket, saveTicket } from '../data/ticketStore';
+import {
+  buildTicket,
+  clearPendingGames,
+  commitPendingGamesAsTicket,
+  deleteTicket,
+  evaluateTicket,
+  EvaluatedTicket,
+  getSavedTickets,
+  PENDING_GAMES_LIMIT,
+  removePendingGame,
+  SavedTicket,
+  saveTicket,
+} from '../data/ticketStore';
 import { Draw } from '../data/lottoData';
+import { usePendingPicks } from '../hooks/usePendingPicks';
 import { Ball } from './HomeContent';
 
 const C = {
@@ -63,6 +76,8 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const refs = useRef<(TextInput | null)[]>([]);
   const scanLockedRef = useRef(false);
+  const { pending } = usePendingPicks();
+  const nextDrwNoCandidate = parseInt(drawNo, 10) || (latest ? latest.drwNo + 1 : 1);
 
   const evaluatedTickets = useMemo(
     () => tickets.map(ticket => evaluateTicket(ticket, draws)),
@@ -73,6 +88,25 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
     const saved = await getSavedTickets();
     setTickets(saved);
   }, []);
+
+  const handleRemovePending = useCallback(async (id: string) => {
+    await removePendingGame(id);
+  }, []);
+
+  const handleCommitPending = useCallback(async () => {
+    const ticket = await commitPendingGamesAsTicket(nextDrwNoCandidate);
+    if (!ticket) return;
+    await loadTickets();
+    Alert.alert('저장 완료', `${ticket.drawNo}회 ${ticket.games.length}게임을 내 번호에 저장했습니다.`);
+  }, [nextDrwNoCandidate, loadTickets]);
+
+  const handleClearPending = useCallback(async () => {
+    if (pending.length === 0) return;
+    Alert.alert('모은 번호 비우기', '추천에서 모은 번호를 모두 비울까요?', [
+      { text: '취소', style: 'cancel' },
+      { text: '비우기', style: 'destructive', onPress: async () => { await clearPendingGames(); } },
+    ]);
+  }, [pending.length]);
 
   useEffect(() => {
     loadTickets();
@@ -200,6 +234,49 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
       >
         <ScreenHeader title="내 번호" subtitle="구매 번호 등록 · 당첨 결과 확인" right={<HeaderInfo />} />
 
+        {pending.length > 0 && (
+          <View style={s.card}>
+            <View style={s.cardHead}>
+              <View>
+                <Text style={s.cardTitle}>추천에서 모은 번호</Text>
+                <Text style={s.cardSub}>{pending.length}/{PENDING_GAMES_LIMIT} · 5개 차면 자동 저장</Text>
+              </View>
+              <TouchableOpacity style={s.pendingClearBtn} onPress={handleClearPending} activeOpacity={0.7}>
+                <Text style={s.pendingClearText}>모두 비우기</Text>
+              </TouchableOpacity>
+            </View>
+            {Array.from({ length: PENDING_GAMES_LIMIT }).map((_, slotIdx) => {
+              const game = pending[slotIdx];
+              if (!game) {
+                return (
+                  <View key={`empty-${slotIdx}`} style={[s.pendingRow, s.pendingRowEmpty]}>
+                    <Text style={s.pendingSlotLabel}>{slotIdx + 1}</Text>
+                    <Text style={s.pendingEmptyText}>빈 슬롯 (추천 화면에서 ☆로 추가)</Text>
+                  </View>
+                );
+              }
+              return (
+                <View key={game.id} style={s.pendingRow}>
+                  <Text style={s.pendingSlotLabel}>{slotIdx + 1}</Text>
+                  <View style={s.pendingBalls}>
+                    {game.numbers.map((n, i) => <Ball key={i} num={n} size={26} />)}
+                  </View>
+                  <Text style={s.pendingSum}>{game.numbers.reduce((a, b) => a + b, 0)}</Text>
+                  <TouchableOpacity onPress={() => handleRemovePending(game.id)} style={s.pendingRemove}>
+                    <Ionicons name="close-circle" size={18} color={C.dim} />
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
+            {pending.length > 0 && pending.length < PENDING_GAMES_LIMIT && (
+              <TouchableOpacity style={s.pendingSaveBtn} onPress={handleCommitPending} activeOpacity={0.75}>
+                <Ionicons name="ticket-outline" size={14} color="#FFFFFF" />
+                <Text style={s.pendingSaveText}>지금 {pending.length}개로 시트 저장</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
         <View style={s.card}>
           <View style={s.cardHead}>
             <View>
@@ -316,9 +393,15 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
                   <View style={s.drawInfo}>
                     <Text style={s.drawLabel}>당첨번호</Text>
                     <View style={s.drawBalls}>
-                      {ticket.draw.numbers.map(number => <Ball key={number} num={number} size={26} />)}
+                      {ticket.draw.numbers.map(number => (
+                        <View key={number} style={s.ballWrap}>
+                          <Ball num={number} size={32} />
+                        </View>
+                      ))}
                       <Text style={s.plus}>+</Text>
-                      <Ball num={ticket.draw.bonus} size={26} />
+                      <View style={s.ballWrap}>
+                        <Ball num={ticket.draw.bonus} size={32} />
+                      </View>
                     </View>
                   </View>
                 )}
@@ -434,6 +517,17 @@ const s = StyleSheet.create({
   btnSecondaryText: { fontSize: 14, fontWeight: '600', color: C.black },
   qrButton: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.border, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
   qrButtonText: { fontSize: 12, fontWeight: '700', color: C.black },
+  pendingRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 7, borderTopWidth: 1, borderTopColor: C.border, gap: 6 },
+  pendingRowEmpty: { opacity: 0.55 },
+  pendingSlotLabel: { width: 14, fontSize: 11, fontWeight: '700', color: C.dim, textAlign: 'center' },
+  pendingBalls: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  pendingEmptyText: { flex: 1, fontSize: 11, color: C.gray },
+  pendingSum: { fontSize: 10.5, color: C.gray, width: 28, textAlign: 'right' },
+  pendingRemove: { paddingHorizontal: 4, paddingVertical: 4 },
+  pendingClearBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: C.border, backgroundColor: '#FFFFFF' },
+  pendingClearText: { fontSize: 11, color: C.gray, fontWeight: '600' },
+  pendingSaveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 10, paddingVertical: 10, borderRadius: 999, backgroundColor: C.black },
+  pendingSaveText: { fontSize: 12.5, fontWeight: '700', color: '#FFFFFF' },
   listHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 16, marginTop: 16, marginBottom: 2 },
   sectionTitle: { fontSize: 13, fontWeight: '800', color: C.black },
   dim: { fontSize: 10, color: C.gray },

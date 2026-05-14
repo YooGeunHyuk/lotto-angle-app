@@ -192,12 +192,27 @@ export async function getPendingGames(): Promise<PendingGame[]> {
   }
 }
 
+const pendingListeners = new Set<() => void>();
+function notifyPending(): void {
+  pendingListeners.forEach(fn => {
+    try { fn(); } catch { /* swallow */ }
+  });
+}
+
+// 화면들이 pending 변경을 구독해서 자동 리렌더할 수 있게 한다.
+export function subscribePendingGames(listener: () => void): () => void {
+  pendingListeners.add(listener);
+  return () => { pendingListeners.delete(listener); };
+}
+
 async function savePendingGames(games: PendingGame[]): Promise<void> {
   await AsyncStorage.setItem(PENDING_GAMES_KEY, JSON.stringify(games));
+  notifyPending();
 }
 
 export async function clearPendingGames(): Promise<void> {
   await AsyncStorage.removeItem(PENDING_GAMES_KEY);
+  notifyPending();
 }
 
 export type AddPendingResult =
