@@ -1,12 +1,23 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AdBanner from '../components/AdBanner';
 import ScreenHeader from '../components/ScreenHeader';
 import { Draw } from '../data/lottoData';
 import { saveRecommendedTicket } from '../data/recommendedTicket';
+import {
+  PendingGame,
+  PENDING_GAMES_LIMIT,
+  addPendingGame,
+  getPendingGames,
+  removePendingGame,
+} from '../data/ticketStore';
 import { generateFiveSets } from '../engine/predictor';
 import { ballBg, ballText } from '../utils/colors';
+
+function sortedKey(numbers: number[]): string {
+  return [...numbers].sort((a, b) => a - b).join(',');
+}
 
 const C = { bg: '#FFFFFF', card: '#F7F7F7', border: '#EEEEEE', black: '#1A1A1A', gray: '#999999', dim: '#CCCCCC', logo: '#D94F2A' };
 
@@ -28,6 +39,7 @@ export default function HomeContent({
   onOpenTickets?: () => void;
 }) {
   const latest = draws[draws.length - 1];
+  const latestSum = latest.numbers.reduce((a, b) => a + b, 0);
   const nextDrwNo = latest.drwNo + 1;
   const initialAnalysis = generateFiveSets(draws);
   const [result, setResult] = useState<ReturnType<typeof generateFiveSets> | null>(null);
@@ -35,6 +47,43 @@ export default function HomeContent({
   const [saving, setSaving] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
+  const [pending, setPending] = useState<PendingGame[]>([]);
+
+  // 마운트 시 임시 영역 로드
+  useEffect(() => {
+    getPendingGames().then(setPending).catch(() => {});
+  }, []);
+
+  const pendingKeys = new Set(pending.map(g => g.numbers.join(',')));
+
+  const toggleSelectSet = useCallback(async (numbers: number[]) => {
+    const key = sortedKey(numbers);
+    const existing = pending.find(g => g.numbers.join(',') === key);
+    if (existing) {
+      const updated = await removePendingGame(existing.id);
+      setPending(updated);
+      return;
+    }
+    const res = await addPendingGame(numbers, nextDrwNo);
+    if (res.type === 'committed') {
+      setPending([]);
+      onTicketSaved?.();
+      Alert.alert(
+        '내 번호 시트 완성! 🎯',
+        `5개 번호가 모여서 ${nextDrwNo}회차 내 번호로 저장되었습니다.`,
+        [
+          { text: '확인' },
+          { text: '내 번호 보기', onPress: onOpenTickets },
+        ],
+      );
+    } else if (res.type === 'added') {
+      setPending(res.games);
+    } else if (res.type === 'duplicate') {
+      // 이미 추가된 번호 — 별도 알림 없음
+    } else if (res.type === 'full') {
+      Alert.alert('가득 찼어요', '5개가 모이면 자동으로 시트로 저장됩니다.');
+    }
+  }, [nextDrwNo, onOpenTickets, onTicketSaved, pending]);
 
   const regenerate = useCallback(() => {
     setBusy(true);
@@ -99,7 +148,10 @@ export default function HomeContent({
         />
 
         <View style={[s.card, s.latestCard]}>
-          <Text style={s.label}>{latest.drwNo}회 당첨번호 · {latest.drwNoDate}</Text>
+          <View style={s.latestHead}>
+            <Text style={s.label}>{latest.drwNo}회 당첨번호 · {latest.drwNoDate}</Text>
+            <Text style={s.latestSum}>합계 {latestSum}</Text>
+          </View>
           <View style={s.row}>
             {latest.numbers.map((n, i) => <Ball key={i} num={n} size={36} />)}
             <Text style={s.plus}>+</Text>
@@ -119,15 +171,32 @@ export default function HomeContent({
                 <Text style={s.savePickText}>{saving ? '저장 중' : '내 번호 저장'}</Text>
               </TouchableOpacity>
             </View>
-            {result.sets.map(set => (
-              <View key={set.setNo} style={s.setRow}>
-                <Text style={s.setNo}>{set.setNo}</Text>
-                <View style={s.ballsRow}>
-                  {set.numbers.map((n, i) => <Ball key={i} num={n} size={34} />)}
-                </View>
-                <Text style={s.sum}>{set.numbers.reduce((a, b) => a + b, 0)}</Text>
-              </View>
-            ))}
+            <Text style={s.pickHint}>
+              ☆ 표시를 눌러 마음에 드는 세트만 골라 모으세요. {pending.length}/{PENDING_GAMES_LIMIT}개 모이면 한 시트로 자동 저장됩니다.
+            </Text>
+            {result.sets.map(set => {
+              const selected = pendingKeys.has(sortedKey(set.numbers));
+              return (
+                <TouchableOpacity
+                  key={set.setNo}
+                  style={s.setRow}
+                  activeOpacity={0.6}
+                  onPress={() => toggleSelectSet(set.numbers)}
+                >
+                  <Text style={s.setNo}>{set.setNo}</Text>
+                  <View style={s.ballsRow}>
+                    {set.numbers.map((n, i) => <Ball key={i} num={n} size={34} />)}
+                  </View>
+                  <Text style={s.sum}>{set.numbers.reduce((a, b) => a + b, 0)}</Text>
+                  <Ionicons
+                    name={selected ? 'star' : 'star-outline'}
+                    size={18}
+                    color={selected ? C.logo : C.dim}
+                    style={s.starIcon}
+                  />
+                </TouchableOpacity>
+              );
+            })}
           </View>
         )}
 
@@ -233,6 +302,10 @@ const s = StyleSheet.create({
   setNo: { fontSize: 11, fontWeight: '700', color: C.dim, width: 14 },
   ballsRow: { flex: 1, flexDirection: 'row', justifyContent: 'space-between' },
   sum: { fontSize: 11, color: C.gray, width: 28, textAlign: 'right' },
+  starIcon: { marginLeft: 4 },
+  latestHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 },
+  latestSum: { fontSize: 11, color: C.gray, fontWeight: '600' },
+  pickHint: { fontSize: 11, color: C.gray, lineHeight: 16, marginBottom: 4 },
   ball: { justifyContent: 'center', alignItems: 'center' },
   ballText: { fontWeight: '800' },
   accordionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

@@ -66,19 +66,23 @@ export default function StatsContent({ draws }: { draws: Draw[] }) {
           </TouchableOpacity>
           {recentExpanded && (
             <View style={s.recentBody}>
-              {recent10.map((d, index) => (
-                <View key={d.drwNo} style={[s.recentRow, index > 0 && s.rowDivider]}>
-                  <View style={s.recentMeta}>
-                    <Text style={s.recentDrwNo}>{d.drwNo}회</Text>
-                    <Text style={s.recentDate}>{d.drwNoDate}</Text>
+              {recent10.map((d, index) => {
+                const drawSum = d.numbers.reduce((a, b) => a + b, 0);
+                return (
+                  <View key={d.drwNo} style={[s.recentRow, index > 0 && s.rowDivider]}>
+                    <View style={s.recentMeta}>
+                      <Text style={s.recentDrwNo}>{d.drwNo}회</Text>
+                      <Text style={s.recentDate}>{d.drwNoDate}</Text>
+                      <Text style={s.recentSumLabel}>합계 {drawSum}</Text>
+                    </View>
+                    <View style={s.recentBalls}>
+                      {d.numbers.map((n, i) => <Ball key={i} num={n} size={36} />)}
+                      <Text style={s.recentPlus}>+</Text>
+                      <Ball num={d.bonus} size={36} />
+                    </View>
                   </View>
-                  <View style={s.recentBalls}>
-                    {d.numbers.map((n, i) => <Ball key={i} num={n} size={36} />)}
-                    <Text style={s.recentPlus}>+</Text>
-                    <Ball num={d.bonus} size={36} />
-                  </View>
-                </View>
-              ))}
+                );
+              })}
             </View>
           )}
         </View>
@@ -223,7 +227,8 @@ const s = StyleSheet.create({
   cardTitleNoMargin: { fontSize: 13, fontWeight: '700', color: C.black },
   recentBody: { marginTop: 6 },
   recentRow: { paddingVertical: 12, gap: 8 },
-  recentMeta: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
+  recentMeta: { flexDirection: 'row', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' },
+  recentSumLabel: { fontSize: 10, color: C.gray, marginLeft: 'auto' },
   recentDrwNo: { fontSize: 12, fontWeight: '700', color: C.black },
   recentDate: { fontSize: 10, color: C.gray },
   recentBalls: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
