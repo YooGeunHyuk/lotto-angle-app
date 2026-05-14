@@ -545,7 +545,7 @@ const s = StyleSheet.create({
   qrButtonText: { fontSize: 12, fontWeight: '700', color: C.black },
   headerActions: { position: 'relative', alignItems: 'flex-end', justifyContent: 'flex-end', height: 56, zIndex: 4 },
   actionGroup: { position: 'relative', alignItems: 'flex-end', justifyContent: 'flex-end', height: 56 },
-  headerInfoSlot: { position: 'absolute', top: -5, right: 5, zIndex: 3 },
+  headerInfoSlot: { position: 'absolute', top: 0, right: 5, zIndex: 3 },
   qrHeaderBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.black, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8 },
   qrHeaderBtnText: { fontSize: 13, fontWeight: '600', color: '#FFFFFF' },
   pendingRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 7, borderTopWidth: 1, borderTopColor: C.border, gap: 6 },
