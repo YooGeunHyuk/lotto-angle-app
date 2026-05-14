@@ -63,7 +63,7 @@ function statusColor(ticket: EvaluatedTicket): string {
   return ticket.games.some(game => game.rank !== '낙첨') ? C.win : C.gray;
 }
 
-export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Draw[]; refreshKey?: number }) {
+export default function MyTicketsContent({ draws, refreshKey = 0, scannerRequestId = 0 }: { draws: Draw[]; refreshKey?: number; scannerRequestId?: number }) {
   const latest = draws[draws.length - 1];
   const [tickets, setTickets] = useState<SavedTicket[]>([]);
   const [drawNo, setDrawNo] = useState(String(latest ? latest.drwNo + 1 : 1));
@@ -78,6 +78,7 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
   const scanLockedRef = useRef(false);
   const { pending } = usePendingPicks();
   const nextDrwNoCandidate = parseInt(drawNo, 10) || (latest ? latest.drwNo + 1 : 1);
+  const [registerExpanded, setRegisterExpanded] = useState(false);
 
   const evaluatedTickets = useMemo(
     () => tickets.map(ticket => evaluateTicket(ticket, draws)),
@@ -175,6 +176,15 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
     setExpandedTicketId(prev => (prev === ticketId ? null : ticketId));
   }
 
+  // 메인 화면에서 QR 버튼을 누르면 scannerRequestId가 증가 → 자동으로 모달 열림
+  useEffect(() => {
+    if (scannerRequestId > 0) {
+      openScanner();
+    }
+    // openScanner는 closure로 안정적으로 동작
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scannerRequestId]);
+
   async function openScanner() {
     setScanRawText('');
     setScannerLocked(false);
@@ -234,17 +244,18 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
       >
         <ScreenHeader title="내 번호" subtitle="구매 번호 등록 · 당첨 결과 확인" right={<HeaderInfo />} />
 
-        {pending.length > 0 && (
-          <View style={s.card}>
-            <View style={s.cardHead}>
-              <View>
-                <Text style={s.cardTitle}>추천에서 모은 번호</Text>
-                <Text style={s.cardSub}>{pending.length}/{PENDING_GAMES_LIMIT} · 5개 차면 자동 저장</Text>
-              </View>
+        <View style={s.card}>
+          <View style={s.cardHead}>
+            <View>
+              <Text style={s.cardTitle}>추천에서 모은 번호</Text>
+              <Text style={s.cardSub}>{pending.length}/{PENDING_GAMES_LIMIT} · 5개 차면 자동 저장</Text>
+            </View>
+            {pending.length > 0 && (
               <TouchableOpacity style={s.pendingClearBtn} onPress={handleClearPending} activeOpacity={0.7}>
                 <Text style={s.pendingClearText}>모두 비우기</Text>
               </TouchableOpacity>
-            </View>
+            )}
+          </View>
             {Array.from({ length: PENDING_GAMES_LIMIT }).map((_, slotIdx) => {
               const game = pending[slotIdx];
               if (!game) {
@@ -275,63 +286,71 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
               </TouchableOpacity>
             )}
           </View>
-        )}
 
         <View style={s.card}>
-          <View style={s.cardHead}>
+          <TouchableOpacity
+            style={s.cardHead}
+            activeOpacity={0.7}
+            onPress={() => setRegisterExpanded(v => !v)}
+          >
             <View>
               <Text style={s.cardTitle}>구매 번호 등록</Text>
-              <Text style={s.cardSub}>다음 회차 {latest ? latest.drwNo + 1 : '-'}회</Text>
+              <Text style={s.cardSub}>다음 회차 {latest ? latest.drwNo + 1 : '-'}회 · 직접 입력</Text>
             </View>
-            <TouchableOpacity style={s.qrButton} activeOpacity={0.75} onPress={openScanner}>
-              <Ionicons name="qr-code-outline" size={16} color={C.black} />
-              <Text style={s.qrButtonText}>QR 스캔</Text>
-            </TouchableOpacity>
-          </View>
+            <Ionicons
+              name={registerExpanded ? 'chevron-up' : 'chevron-down'}
+              size={18}
+              color={C.gray}
+            />
+          </TouchableOpacity>
 
-          <Text style={s.label}>회차</Text>
-          <TextInput
-            style={s.drawInput}
-            value={drawNo}
-            onChangeText={value => setDrawNo(value.replace(/[^0-9]/g, ''))}
-            keyboardType="number-pad"
-            placeholder="1222"
-            placeholderTextColor={C.gray}
-          />
+          {registerExpanded && (
+            <View>
+              <Text style={s.label}>회차</Text>
+              <TextInput
+                style={s.drawInput}
+                value={drawNo}
+                onChangeText={value => setDrawNo(value.replace(/[^0-9]/g, ''))}
+                keyboardType="number-pad"
+                placeholder="1222"
+                placeholderTextColor={C.gray}
+              />
 
-          <Text style={s.label}>구매 번호</Text>
-          {games.map((game, gameIndex) => (
-            <View key={GAME_LABELS[gameIndex]} style={s.manualGameRow}>
-              <Text style={s.manualGameLabel}>{GAME_LABELS[gameIndex]}</Text>
-              <View style={s.numRow}>
-                {game.map((value, numberIndex) => {
-                  const flatIndex = gameIndex * 6 + numberIndex;
-                  return (
-                    <TextInput
-                      key={numberIndex}
-                      ref={(element) => { refs.current[flatIndex] = element; }}
-                      style={s.numInput}
-                      value={value}
-                      onChangeText={text => updateNum(gameIndex, numberIndex, text)}
-                      keyboardType="number-pad"
-                      maxLength={2}
-                      placeholder={`${numberIndex + 1}`}
-                      placeholderTextColor={C.gray}
-                    />
-                  );
-                })}
+              <Text style={s.label}>구매 번호</Text>
+              {games.map((game, gameIndex) => (
+                <View key={GAME_LABELS[gameIndex]} style={s.manualGameRow}>
+                  <Text style={s.manualGameLabel}>{GAME_LABELS[gameIndex]}</Text>
+                  <View style={s.numRow}>
+                    {game.map((value, numberIndex) => {
+                      const flatIndex = gameIndex * 6 + numberIndex;
+                      return (
+                        <TextInput
+                          key={numberIndex}
+                          ref={(element) => { refs.current[flatIndex] = element; }}
+                          style={s.numInput}
+                          value={value}
+                          onChangeText={text => updateNum(gameIndex, numberIndex, text)}
+                          keyboardType="number-pad"
+                          maxLength={2}
+                          placeholder={`${numberIndex + 1}`}
+                          placeholderTextColor={C.gray}
+                        />
+                      );
+                    })}
+                  </View>
+                </View>
+              ))}
+
+              <View style={s.btnRow}>
+                <TouchableOpacity style={[s.btn, s.btnSecondary]} onPress={resetForm}>
+                  <Text style={s.btnSecondaryText}>초기화</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[s.btn, s.btnPrimary]} onPress={handleSave}>
+                  <Text style={s.btnPrimaryText}>저장</Text>
+                </TouchableOpacity>
               </View>
             </View>
-          ))}
-
-          <View style={s.btnRow}>
-            <TouchableOpacity style={[s.btn, s.btnSecondary]} onPress={resetForm}>
-              <Text style={s.btnSecondaryText}>초기화</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[s.btn, s.btnPrimary]} onPress={handleSave}>
-              <Text style={s.btnPrimaryText}>저장</Text>
-            </TouchableOpacity>
-          </View>
+          )}
         </View>
 
         <View style={s.listHead}>

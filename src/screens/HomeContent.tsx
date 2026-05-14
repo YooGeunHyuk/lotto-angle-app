@@ -24,10 +24,12 @@ export default function HomeContent({
   draws,
   onTicketSaved,
   onOpenTickets,
+  onOpenScanner,
 }: {
   draws: Draw[];
   onTicketSaved?: () => void;
   onOpenTickets?: () => void;
+  onOpenScanner?: () => void;
 }) {
   const latest = draws[draws.length - 1];
   const latestSum = latest.numbers.reduce((a, b) => a + b, 0);
@@ -113,9 +115,16 @@ export default function HomeContent({
                   </View>
                 </View>
               )}
-              <TouchableOpacity style={[s.btn, busy && { opacity: 0.4 }]} onPress={regenerate} disabled={busy}>
-                <Text style={s.btnText}>{busy ? '생성 중' : result ? '다시 추천' : '번호 추천'}</Text>
-              </TouchableOpacity>
+              <View style={s.headerBtnRow}>
+                {onOpenScanner && (
+                  <TouchableOpacity style={s.qrIconBtn} onPress={onOpenScanner} activeOpacity={0.75}>
+                    <Ionicons name="qr-code-outline" size={16} color={C.black} />
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity style={[s.btn, busy && { opacity: 0.4 }]} onPress={regenerate} disabled={busy}>
+                  <Text style={s.btnText}>{busy ? '생성 중' : result ? '다시 추천' : '번호 추천'}</Text>
+                </TouchableOpacity>
+              </View>
               </View>
             </View>
           )}
@@ -263,6 +272,12 @@ const s = StyleSheet.create({
   infoEmail: { fontSize: 11, lineHeight: 17, color: C.black, marginTop: 4, textAlign: 'center' },
   btn: { backgroundColor: C.black, paddingHorizontal: 18, paddingVertical: 9, borderRadius: 999 },
   btnText: { fontSize: 13, fontWeight: '600', color: '#FFFFFF' },
+  headerBtnRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  qrIconBtn: {
+    width: 34, height: 34, borderRadius: 999,
+    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
   savePickButton: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.black, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
   savePickText: { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
   card: { marginHorizontal: 16, marginTop: 12, backgroundColor: C.card, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: C.border },
