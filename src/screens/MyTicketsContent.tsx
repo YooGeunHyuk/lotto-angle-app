@@ -238,11 +238,15 @@ export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Dra
           subtitle="구매 번호 등록 · 당첨 결과 확인"
           right={(
             <View style={s.headerActions}>
-              <TouchableOpacity style={s.qrHeaderBtn} onPress={openScanner} activeOpacity={0.75}>
-                <Ionicons name="qr-code-outline" size={15} color="#FFFFFF" />
-                <Text style={s.qrHeaderBtnText}>QR 스캔</Text>
-              </TouchableOpacity>
-              <HeaderInfo />
+              <View style={s.actionGroup}>
+                <View style={s.headerInfoSlot}>
+                  <HeaderInfo />
+                </View>
+                <TouchableOpacity style={s.qrHeaderBtn} onPress={openScanner} activeOpacity={0.75}>
+                  <Ionicons name="qr-code-outline" size={15} color="#FFFFFF" />
+                  <Text style={s.qrHeaderBtnText}>QR 스캔</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
         />
@@ -539,8 +543,10 @@ const s = StyleSheet.create({
   btnSecondaryText: { fontSize: 14, fontWeight: '600', color: C.black },
   qrButton: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.border, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
   qrButtonText: { fontSize: 12, fontWeight: '700', color: C.black },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  qrHeaderBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.black, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9 },
+  headerActions: { position: 'relative', alignItems: 'flex-end', justifyContent: 'flex-end', height: 56, zIndex: 4 },
+  actionGroup: { position: 'relative', alignItems: 'flex-end', justifyContent: 'flex-end', height: 56 },
+  headerInfoSlot: { position: 'absolute', top: -5, right: 5, zIndex: 3 },
+  qrHeaderBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.black, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8 },
   qrHeaderBtnText: { fontSize: 13, fontWeight: '600', color: '#FFFFFF' },
   pendingRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 7, borderTopWidth: 1, borderTopColor: C.border, gap: 6 },
   pendingRowEmpty: { opacity: 0.55 },
