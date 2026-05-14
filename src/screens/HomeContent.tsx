@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AdBanner from '../components/AdBanner';
+import HeaderInfo from '../components/HeaderInfo';
 import ScreenHeader from '../components/ScreenHeader';
 import { Draw } from '../data/lottoData';
 import { saveRecommendedTicket } from '../data/recommendedTicket';
@@ -37,7 +38,6 @@ export default function HomeContent({
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isInfoOpen, setIsInfoOpen] = useState(false);
   const { pending, isSelected, toggleSelect } = usePendingPicks();
 
   const toggleSelectSet = useCallback(async (numbers: number[]) => {
@@ -96,26 +96,15 @@ export default function HomeContent({
           title="로또될각"
           titleStyle={s.logo}
           subtitle="이번엔 진짜 로또될각!"
-          containerStyle={s.header}
           right={(
             <View style={s.headerActions}>
               <View style={s.actionGroup}>
-              <TouchableOpacity style={s.infoButton} onPress={() => setIsInfoOpen(prev => !prev)} activeOpacity={0.8}>
-                <Text style={s.infoButtonText}>i</Text>
-              </TouchableOpacity>
-              {isInfoOpen && (
-                <View style={s.infoBubbleWrap}>
-                  <View style={s.infoArrow} />
-                  <View style={s.infoBubble}>
-                    <Text style={s.infoText}>우주🪐의 기운을 모아</Text>
-                    <Text style={s.infoText}>당첨을 기원합니다! 🙏</Text>
-                    <Text style={s.infoEmail}>meetyuuu@gmail.com</Text>
-                  </View>
+                <View style={s.headerInfoSlot}>
+                  <HeaderInfo />
                 </View>
-              )}
-              <TouchableOpacity style={[s.btn, busy && { opacity: 0.4 }]} onPress={regenerate} disabled={busy}>
-                <Text style={s.btnText}>{busy ? '생성 중' : result ? '다시 추천' : '번호 추천'}</Text>
-              </TouchableOpacity>
+                <TouchableOpacity style={[s.btn, busy && { opacity: 0.4 }]} onPress={regenerate} disabled={busy}>
+                  <Text style={s.btnText}>{busy ? '생성 중' : result ? '다시 추천' : '번호 추천'}</Text>
+                </TouchableOpacity>
               </View>
             </View>
           )}
@@ -190,7 +179,6 @@ export default function HomeContent({
 
         <View style={{ height: 32 }} />
       </ScrollView>
-      {isInfoOpen && <TouchableOpacity style={s.infoBackdrop} activeOpacity={1} onPress={() => setIsInfoOpen(false)} />}
     </View>
   );
 }
@@ -198,69 +186,10 @@ export default function HomeContent({
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.bg },
   content: { paddingBottom: 8 },
-  header: { alignItems: 'flex-end' },
   logo: { fontFamily: 'Jua', fontSize: 30, fontWeight: '400', color: C.logo, letterSpacing: 0 },
-  infoBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 2,
-  },
   headerActions: { position: 'relative', alignItems: 'flex-end', justifyContent: 'flex-end', height: 56, zIndex: 4 },
-  actionGroup: {
-    position: 'relative',
-    alignItems: 'flex-end',
-    justifyContent: 'flex-end',
-    height: 56,
-  },
-  infoButton: {
-    position: 'absolute',
-    top: 0,
-    right: 5,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 1,
-    borderColor: C.border,
-    backgroundColor: C.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 3,
-  },
-  infoButtonText: { fontSize: 10, fontWeight: '700', color: C.gray },
-  infoBubbleWrap: {
-    position: 'absolute',
-    top: 24,
-    right: 0,
-    alignItems: 'flex-end',
-    zIndex: 2,
-  },
-  infoArrow: {
-    width: 10,
-    height: 10,
-    backgroundColor: C.card,
-    borderLeftWidth: 1,
-    borderTopWidth: 1,
-    borderColor: C.border,
-    transform: [{ rotate: '45deg' }],
-    marginRight: 12,
-    marginBottom: -5,
-    zIndex: 1,
-  },
-  infoBubble: {
-    width: 172,
-    backgroundColor: C.card,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: C.border,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  infoText: { fontSize: 11, lineHeight: 17, color: C.gray, textAlign: 'center' },
-  infoEmail: { fontSize: 11, lineHeight: 17, color: C.black, marginTop: 4, textAlign: 'center' },
+  actionGroup: { position: 'relative', alignItems: 'flex-end', justifyContent: 'flex-end', height: 56 },
+  headerInfoSlot: { position: 'absolute', top: 0, right: 5, zIndex: 3 },
   btn: { backgroundColor: C.black, paddingHorizontal: 18, paddingVertical: 9, borderRadius: 999 },
   btnText: { fontSize: 13, fontWeight: '600', color: '#FFFFFF' },
   savePickButton: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.black, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
