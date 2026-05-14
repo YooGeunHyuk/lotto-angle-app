@@ -63,7 +63,7 @@ function statusColor(ticket: EvaluatedTicket): string {
   return ticket.games.some(game => game.rank !== '낙첨') ? C.win : C.gray;
 }
 
-export default function MyTicketsContent({ draws, refreshKey = 0, scannerRequestId = 0 }: { draws: Draw[]; refreshKey?: number; scannerRequestId?: number }) {
+export default function MyTicketsContent({ draws, refreshKey = 0 }: { draws: Draw[]; refreshKey?: number }) {
   const latest = draws[draws.length - 1];
   const [tickets, setTickets] = useState<SavedTicket[]>([]);
   const [drawNo, setDrawNo] = useState(String(latest ? latest.drwNo + 1 : 1));
@@ -176,15 +176,6 @@ export default function MyTicketsContent({ draws, refreshKey = 0, scannerRequest
     setExpandedTicketId(prev => (prev === ticketId ? null : ticketId));
   }
 
-  // 메인 화면에서 QR 버튼을 누르면 scannerRequestId가 증가 → 자동으로 모달 열림
-  useEffect(() => {
-    if (scannerRequestId > 0) {
-      openScanner();
-    }
-    // openScanner는 closure로 안정적으로 동작
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scannerRequestId]);
-
   async function openScanner() {
     setScanRawText('');
     setScannerLocked(false);
@@ -242,7 +233,19 @@ export default function MyTicketsContent({ draws, refreshKey = 0, scannerRequest
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={s.content}
       >
-        <ScreenHeader title="내 번호" subtitle="구매 번호 등록 · 당첨 결과 확인" right={<HeaderInfo />} />
+        <ScreenHeader
+          title="내 번호"
+          subtitle="구매 번호 등록 · 당첨 결과 확인"
+          right={(
+            <View style={s.headerActions}>
+              <TouchableOpacity style={s.qrHeaderBtn} onPress={openScanner} activeOpacity={0.75}>
+                <Ionicons name="qr-code-outline" size={15} color="#FFFFFF" />
+                <Text style={s.qrHeaderBtnText}>QR 스캔</Text>
+              </TouchableOpacity>
+              <HeaderInfo />
+            </View>
+          )}
+        />
 
         <View style={s.card}>
           <View style={s.cardHead}>
@@ -536,6 +539,9 @@ const s = StyleSheet.create({
   btnSecondaryText: { fontSize: 14, fontWeight: '600', color: C.black },
   qrButton: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.border, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
   qrButtonText: { fontSize: 12, fontWeight: '700', color: C.black },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  qrHeaderBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.black, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9 },
+  qrHeaderBtnText: { fontSize: 13, fontWeight: '600', color: '#FFFFFF' },
   pendingRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 7, borderTopWidth: 1, borderTopColor: C.border, gap: 6 },
   pendingRowEmpty: { opacity: 0.55 },
   pendingSlotLabel: { width: 14, fontSize: 11, fontWeight: '700', color: C.dim, textAlign: 'center' },

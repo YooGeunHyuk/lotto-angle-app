@@ -36,7 +36,6 @@ export default function App() {
   const [draws, setDraws] = useState<Draw[]>(allDraws);
   const [scrollEnabled, setScrollEnabled] = useState(true);
   const [ticketsRefreshKey, setTicketsRefreshKey] = useState(0);
-  const [scannerRequestId, setScannerRequestId] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
 
   const loadDraws = useCallback(async () => {
@@ -71,11 +70,6 @@ export default function App() {
 
   const refreshTickets = () => setTicketsRefreshKey(key => key + 1);
 
-  const openScannerFromHome = () => {
-    goTo(3); // 내 번호 탭
-    setScannerRequestId(id => id + 1);
-  };
-
   return (
     <SafeAreaView style={s.safe} edges={['top']}> 
       <View style={s.root}>
@@ -88,12 +82,12 @@ export default function App() {
           scrollEventThrottle={16}
           onMomentumScrollEnd={e => setPage(Math.round(e.nativeEvent.contentOffset.x / width))}
         >
-          <View style={{ width }}><HomeContent draws={draws} onTicketSaved={refreshTickets} onOpenTickets={() => goTo(3)} onOpenScanner={openScannerFromHome} /></View>
+          <View style={{ width }}><HomeContent draws={draws} onTicketSaved={refreshTickets} onOpenTickets={() => goTo(3)} /></View>
           <View style={{ width }}><FixedPickContent draws={draws} onTicketSaved={refreshTickets} onOpenTickets={() => goTo(3)} /></View>
           <View style={{ width }}>
             <SumGeneratorContent draws={draws} setParentScrollEnabled={setScrollEnabled} onTicketSaved={refreshTickets} onOpenTickets={() => goTo(3)} />
           </View>
-          <View style={{ width }}><MyTicketsContent draws={draws} refreshKey={ticketsRefreshKey} scannerRequestId={scannerRequestId} /></View>
+          <View style={{ width }}><MyTicketsContent draws={draws} refreshKey={ticketsRefreshKey} /></View>
           <View style={{ width }}><LuckyMapContent isActive={page === 4} /></View>
           <View style={{ width }}><StatsContent draws={draws} /></View>
         </ScrollView>
