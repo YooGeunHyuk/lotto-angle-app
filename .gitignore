@@ -41,3 +41,8 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Claude worktree + 작업용 자료
+.claude/
+docs/assets/
+docs/golf-demo.html
