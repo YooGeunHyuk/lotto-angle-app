@@ -20,12 +20,45 @@ export interface GeneratedSets {
   sumRange: { min: number; max: number };
 }
 
-const SCORE_WEIGHTS = {
-  frequency: 0.22,
-  recentFrequency: 0.40,
-  gap: 0.08,
-  pairAffinity: 0.25,
-  season: 0.05,
+export type RecommendMode = 'safe' | 'aggressive' | 'experimental';
+
+interface ModeConfig {
+  weights: { frequency: number; recentFrequency: number; gap: number; pairAffinity: number; season: number };
+  sumLowPercentile: number;   // 0~1 (0.25 = 하위 25%)
+  sumHighPercentile: number;
+  prevDrawPenalty: number;
+  consecutiveEnabled: boolean;
+  iterations: number;
+}
+
+const MODE_CONFIGS: Record<RecommendMode, ModeConfig> = {
+  // 안정: 최근 핫 트렌드 추종 + 페어/전체빈도 균형 (현재 기본)
+  safe: {
+    weights: { frequency: 0.22, recentFrequency: 0.40, gap: 0.08, pairAffinity: 0.25, season: 0.05 },
+    sumLowPercentile: 0.25,
+    sumHighPercentile: 0.75,
+    prevDrawPenalty: 0.04,
+    consecutiveEnabled: true,
+    iterations: 1400,
+  },
+  // 공격: 오래 안 나온 콜드 번호 강조 + 직전 회차 강하게 회피 + 합계 범위 넓게
+  aggressive: {
+    weights: { frequency: 0.10, recentFrequency: 0.15, gap: 0.45, pairAffinity: 0.15, season: 0.15 },
+    sumLowPercentile: 0.10,
+    sumHighPercentile: 0.90,
+    prevDrawPenalty: 0.08,
+    consecutiveEnabled: true,
+    iterations: 1400,
+  },
+  // 실험: 거의 균등 (편향 최소) + 합계 제약 없음 + 직전회차/연속 보너스 무시
+  experimental: {
+    weights: { frequency: 0.20, recentFrequency: 0.20, gap: 0.20, pairAffinity: 0.20, season: 0.20 },
+    sumLowPercentile: 0.0,
+    sumHighPercentile: 1.0,
+    prevDrawPenalty: 0.0,
+    consecutiveEnabled: false,
+    iterations: 800,
+  },
 };
 
 const MAX_SET_OVERLAP = 1;
@@ -40,9 +73,11 @@ interface ComputedScores {
   reasons: string[];
 }
 
-function computeScores(draws: Draw[]): ComputedScores {
+function computeScores(draws: Draw[], mode: RecommendMode = 'safe'): ComputedScores {
   const total = draws.length;
   const nextDrwNo = draws[draws.length - 1].drwNo + 1;
+  const config = MODE_CONFIGS[mode];
+  const W = config.weights;
 
   // 전체 빈도
   const freq: Record<number, number> = {};
@@ -101,28 +136,39 @@ function computeScores(draws: Draw[]): ComputedScores {
   const scoreMap: Record<number, number> = {};
   for (let n = 1; n <= 45; n++) {
     scoreMap[n] =
-      (nFreq[n] || 0) * SCORE_WEIGHTS.frequency +
-      (nRecent[n] || 0) * SCORE_WEIGHTS.recentFrequency +
-      (nGap[n] || 0) * SCORE_WEIGHTS.gap +
-      (nPair[n] || 0) * SCORE_WEIGHTS.pairAffinity +
-      (nSeason[n] || 0) * SCORE_WEIGHTS.season;
+      (nFreq[n] || 0) * W.frequency +
+      (nRecent[n] || 0) * W.recentFrequency +
+      (nGap[n] || 0) * W.gap +
+      (nPair[n] || 0) * W.pairAffinity +
+      (nSeason[n] || 0) * W.season;
   }
 
   const sums = draws.map(d => d.numbers.reduce((a, b) => a + b, 0)).sort((a, b) => a - b);
-  const sumMin = sums[Math.floor(total * 0.25)];
-  const sumMax = sums[Math.floor(total * 0.75)];
+  const sumMin = sums[Math.floor(total * config.sumLowPercentile)];
+  const sumMax = sums[Math.min(total - 1, Math.floor(total * config.sumHighPercentile))];
 
-  const reasons = [
-    '최근 출현 흐름과 전체 누적 빈도를 함께 분석',
-    '번호 간 동반 출현 패턴(페어) 고려',
-    '오래 안 나온 번호와 계절별 흐름 보조 참고',
-    '연속 번호 흐름 자연스럽게 반영',
-    '직전 회차 번호는 가볍게 회피',
-    '번호대·홀짝·합계 분포의 균형 유지',
-    '5세트는 서로 다른 관점으로 구성, 중복 최소화',
-  ];
+  const modeReasons: Record<RecommendMode, string[]> = {
+    safe: [
+      '최근 출현 흐름을 최우선으로 추종',
+      '페어 친화도와 전체 누적 빈도를 함께 분석',
+      '직전 회차 번호는 가볍게 회피, 연속 번호 흐름 자연스럽게 반영',
+      '번호대·홀짝·합계 분포의 균형 유지',
+    ],
+    aggressive: [
+      '오래 안 나온 번호를 강하게 반영 (평균 회귀 가설)',
+      '직전 회차 번호는 강하게 회피',
+      '합계 범위를 넓혀 일반적이지 않은 조합도 허용',
+      '계절·페어는 보조 신호로 약하게 반영',
+    ],
+    experimental: [
+      '모든 통계 신호를 균등 비중으로 반영 (편향 최소)',
+      '합계 제약 없음 — 1부터 45 전체에서 자유롭게',
+      '직전 회차 회피·연속 번호 보너스 모두 꺼짐',
+      '실제 무작위에 가까운 추천',
+    ],
+  };
 
-  return { scoreMap, recentFreq, gap, sumMin, sumMax, reasons };
+  return { scoreMap, recentFreq, gap, sumMin, sumMax, reasons: modeReasons[mode] };
 }
 
 function bandOf(n: number): number {
@@ -158,10 +204,11 @@ function consecutiveBonus(numbers: number[]): number {
   return -0.04;                   // 2쌍 이상은 부자연스러움
 }
 
-// 직전 회차 번호는 약 5% 가중치로 가볍게 회피.
-function previousDrawPenalty(numbers: number[], lastNumbers: number[]): number {
+// 직전 회차 번호는 mode 가중치만큼 회피.
+function previousDrawPenalty(numbers: number[], lastNumbers: number[], weight: number): number {
+  if (weight <= 0) return 0;
   const overlap = numbers.filter(n => lastNumbers.includes(n)).length;
-  return overlap * 0.04;
+  return overlap * weight;
 }
 
 function scoreSet(
@@ -169,6 +216,7 @@ function scoreSet(
   scoreMap: Record<number, number>,
   previousSets: number[][],
   lastDrawNumbers: number[],
+  config: ModeConfig,
 ): number {
   const baseScore = numbers.reduce((a, n) => a + (scoreMap[n] || 0), 0);
   const similarityPenalty = previousSets.reduce((penalty, prev) => {
@@ -179,10 +227,11 @@ function scoreSet(
     const usedCount = previousSets.filter(prev => prev.includes(n)).length;
     return penalty + usedCount * 0.12;
   }, 0);
+  const consec = config.consecutiveEnabled ? consecutiveBonus(numbers) : 0;
   return baseScore
     + diversityScore(numbers)
-    + consecutiveBonus(numbers)
-    - previousDrawPenalty(numbers, lastDrawNumbers)
+    + consec
+    - previousDrawPenalty(numbers, lastDrawNumbers, config.prevDrawPenalty)
     - similarityPenalty
     - reusePenalty;
 }
@@ -209,6 +258,7 @@ function pickOne(
   sumMax: number,
   previousSets: number[][],
   lastDrawNumbers: number[],
+  config: ModeConfig,
 ): number[] {
   const usePool = [...new Set(pool)];
 
@@ -230,12 +280,12 @@ function pickOne(
       const sum = picked.reduce((a, b) => a + b, 0);
       if (sum < sumMin || sum > sumMax) continue;
 
-      const sc = scoreSet(picked, scoreMap, previousSets, lastDrawNumbers);
+      const sc = scoreSet(picked, scoreMap, previousSets, lastDrawNumbers, config);
       if (sc > bestScore) { bestScore = sc; best = picked; }
     }
   };
 
-  search(MAX_SET_OVERLAP, MAX_NUMBER_REUSE, 1400);
+  search(MAX_SET_OVERLAP, MAX_NUMBER_REUSE, config.iterations);
   if (bestScore === -Infinity) {
     search(2, 3, 600);
   }
@@ -243,13 +293,37 @@ function pickOne(
   return best.sort((a, b) => a - b);
 }
 
-export function generateFiveSets(draws: Draw[]): GeneratedSets {
+// 세트마다 다른 성격을 위한 풀 사양.
+// 풀 자체뿐 아니라 합계 범위도 살짝 다르게 할 수 있다.
+type SetSpec = {
+  pool: 'hot' | 'cold' | 'balanced' | 'sumLow' | 'sumHigh' | 'random';
+};
+
+// count(요청 갯수)에 맞춰 다양한 성격의 세트 plan을 만든다.
+// 5세트 = hot/cold/sumLow/sumHigh/balanced. 그 이상은 한 번 더 순환.
+function buildSetPlan(count: number): SetSpec[] {
+  const order: SetSpec['pool'][] = [
+    'hot', 'cold', 'sumLow', 'sumHigh', 'balanced',
+    'random', 'hot', 'cold', 'balanced', 'sumLow',
+  ];
+  const plan: SetSpec[] = [];
+  for (let i = 0; i < count; i++) {
+    plan.push({ pool: order[i % order.length] });
+  }
+  return plan;
+}
+
+export function generateSets(
+  draws: Draw[],
+  mode: RecommendMode = 'safe',
+  count: number = 5,
+): GeneratedSets {
   if (draws.length < 20) return { sets: [], reasons: [], sumRange: { min: 0, max: 0 } };
 
+  const config = MODE_CONFIGS[mode];
   const lastDrawNumbers = draws[draws.length - 1].numbers;
-  const { scoreMap, recentFreq, gap, sumMin, sumMax, reasons } = computeScores(draws);
+  const { scoreMap, recentFreq, gap, sumMin, sumMax, reasons } = computeScores(draws, mode);
 
-  // 후보 풀: 전체(점수순), 최근 핫 22개, 장기 콜드 22개
   const fullPool = Object.entries(scoreMap)
     .sort((a, b) => +b[1] - +a[1])
     .map(e => +e[0]);
@@ -261,24 +335,61 @@ export function generateFiveSets(draws: Draw[]): GeneratedSets {
     .sort((a, b) => +b[1] - +a[1])
     .slice(0, 22)
     .map(e => +e[0]);
+  const randomPool = Array.from({ length: 45 }, (_, i) => i + 1);
 
-  // 1세트=핫, 2세트=콜드, 3~5세트=균형
-  const poolPlan = [hotPool, coldPool, fullPool, fullPool, fullPool];
+  const sumMid = Math.floor((sumMin + sumMax) / 2);
+  const plan = buildSetPlan(count);
 
   const sets: PredictionSet[] = [];
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < plan.length; i++) {
+    const spec = plan[i];
+    let pool: number[];
+    let localMin = sumMin;
+    let localMax = sumMax;
+    switch (spec.pool) {
+      case 'hot':
+        pool = hotPool;
+        break;
+      case 'cold':
+        pool = coldPool;
+        break;
+      case 'sumLow':
+        pool = fullPool;
+        localMax = sumMid;
+        break;
+      case 'sumHigh':
+        pool = fullPool;
+        localMin = sumMid;
+        break;
+      case 'random':
+        pool = randomPool;
+        // experimental 모드가 아니어도 random pool은 합계 제약 풀어둠
+        localMin = Math.min(sumMin, 80);
+        localMax = Math.max(sumMax, 200);
+        break;
+      case 'balanced':
+      default:
+        pool = fullPool;
+        break;
+    }
     const numbers = pickOne(
-      poolPlan[i],
+      pool,
       scoreMap,
-      sumMin,
-      sumMax,
+      localMin,
+      localMax,
       sets.map(s => s.numbers),
       lastDrawNumbers,
+      config,
     );
     sets.push({ numbers, setNo: i + 1 });
   }
 
   return { sets, reasons, sumRange: { min: sumMin, max: sumMax } };
+}
+
+// 기존 호출 호환용 (5세트, safe 모드)
+export function generateFiveSets(draws: Draw[]): GeneratedSets {
+  return generateSets(draws, 'safe', 5);
 }
 
 // 고정번호 추천: 사용자가 지정한 번호를 포함해 나머지 자리를 추천 엔진으로 채움.
@@ -351,7 +462,7 @@ function pickN(
     const sc = picked.reduce((a, n) => a + (scoreMap[n] || 0), 0)
       + diversityScore(fullSet)
       + consecutiveBonus(fullSet)
-      - previousDrawPenalty(fullSet, lastDrawNumbers);
+      - previousDrawPenalty(fullSet, lastDrawNumbers, 0.04);
     if (sc > bestScore) { bestScore = sc; best = picked; }
   }
   return best;

@@ -8,7 +8,7 @@ import { Draw } from '../data/lottoData';
 import { saveRecommendedTicket } from '../data/recommendedTicket';
 import { PENDING_GAMES_LIMIT } from '../data/ticketStore';
 import { usePendingPicks } from '../hooks/usePendingPicks';
-import { generateFiveSets } from '../engine/predictor';
+import { generateSets, RecommendMode } from '../engine/predictor';
 import { ballBg, ballText } from '../utils/colors';
 
 const C = { bg: '#FFFFFF', card: '#F7F7F7', border: '#EEEEEE', black: '#1A1A1A', gray: '#999999', dim: '#CCCCCC', logo: '#D94F2A' };
@@ -33,8 +33,10 @@ export default function HomeContent({
   const latest = draws[draws.length - 1];
   const latestSum = latest.numbers.reduce((a, b) => a + b, 0);
   const nextDrwNo = latest.drwNo + 1;
-  const initialAnalysis = generateFiveSets(draws);
-  const [result, setResult] = useState<ReturnType<typeof generateFiveSets> | null>(null);
+  const [mode, setMode] = useState<RecommendMode>('safe');
+  const [count, setCount] = useState<number>(5);
+  const initialAnalysis = generateSets(draws, mode, count);
+  const [result, setResult] = useState<ReturnType<typeof generateSets> | null>(null);
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -61,8 +63,8 @@ export default function HomeContent({
 
   const regenerate = useCallback(() => {
     setBusy(true);
-    setTimeout(() => { setResult(generateFiveSets(draws)); setBusy(false); }, 200);
-  }, [draws]);
+    setTimeout(() => { setResult(generateSets(draws, mode, count)); setBusy(false); }, 200);
+  }, [draws, mode, count]);
 
   const saveRecommendation = useCallback(async () => {
     if (!result || saving) return;
@@ -122,11 +124,54 @@ export default function HomeContent({
           </View>
         </View>
 
+        {/* 추천 옵션: 모드 + 갯수 */}
+        <View style={s.card}>
+          <View style={s.optionRow}>
+            <Text style={s.optionLabel}>모드</Text>
+            <View style={s.segment}>
+              {(['safe', 'aggressive', 'experimental'] as const).map(m => (
+                <TouchableOpacity
+                  key={m}
+                  style={[s.segmentBtn, mode === m && s.segmentBtnActive]}
+                  onPress={() => setMode(m)}
+                  activeOpacity={0.75}
+                >
+                  <Text style={[s.segmentText, mode === m && s.segmentTextActive]}>
+                    {m === 'safe' ? '🛡️ 안정' : m === 'aggressive' ? '🔥 공격' : '🎲 실험'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+          <View style={[s.optionRow, { marginTop: 10 }]}>
+            <Text style={s.optionLabel}>갯수</Text>
+            <View style={s.countRow}>
+              <TouchableOpacity
+                style={[s.countBtn, count <= 1 && { opacity: 0.3 }]}
+                onPress={() => setCount(c => Math.max(1, c - 1))}
+                disabled={count <= 1}
+                activeOpacity={0.6}
+              >
+                <Ionicons name="remove" size={18} color={C.black} />
+              </TouchableOpacity>
+              <Text style={s.countText}>{count}</Text>
+              <TouchableOpacity
+                style={[s.countBtn, count >= 10 && { opacity: 0.3 }]}
+                onPress={() => setCount(c => Math.min(10, c + 1))}
+                disabled={count >= 10}
+                activeOpacity={0.6}
+              >
+                <Ionicons name="add" size={18} color={C.black} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
         {result && (
           <View style={s.card}>
             <View style={s.cardHead}>
               <View>
-                <Text style={s.cardTitle}>{nextDrwNo}회차 추천 · 5세트</Text>
+                <Text style={s.cardTitle}>{nextDrwNo}회차 추천 · {result.sets.length}세트</Text>
                 <Text style={s.dim}>합계 {result.sumRange.min}–{result.sumRange.max}</Text>
               </View>
               <TouchableOpacity style={[s.savePickButton, saving && { opacity: 0.45 }]} onPress={saveRecommendation} disabled={saving} activeOpacity={0.75}>
@@ -192,6 +237,16 @@ const s = StyleSheet.create({
   headerInfoSlot: { position: 'absolute', top: 0, right: 5, zIndex: 3 },
   btn: { backgroundColor: C.black, paddingHorizontal: 18, paddingVertical: 9, borderRadius: 999 },
   btnText: { fontSize: 13, fontWeight: '600', color: '#FFFFFF' },
+  optionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  optionLabel: { fontSize: 12, color: C.gray, fontWeight: '600' },
+  segment: { flexDirection: 'row', backgroundColor: '#FFFFFF', borderRadius: 999, borderWidth: 1, borderColor: C.border, padding: 3, gap: 2 },
+  segmentBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
+  segmentBtnActive: { backgroundColor: C.black },
+  segmentText: { fontSize: 12, fontWeight: '600', color: C.gray },
+  segmentTextActive: { color: '#FFFFFF' },
+  countRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FFFFFF', borderRadius: 999, borderWidth: 1, borderColor: C.border, paddingHorizontal: 6, paddingVertical: 4 },
+  countBtn: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  countText: { fontSize: 14, fontWeight: '700', color: C.black, minWidth: 18, textAlign: 'center' },
   savePickButton: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.black, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
   savePickText: { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
   card: { marginHorizontal: 16, marginTop: 12, backgroundColor: C.card, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: C.border },
