@@ -25,6 +25,11 @@ jobs:
       - name: Fetch latest draw data
         run: npm run update:lotto
 
+      - name: Sync Gist (Naver scrape → Gist API)
+        env:
+          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
+        run: npm run update:gist
+
       - name: Commit updated draw database
         run: |
           if git diff --quiet -- data/lotto_history.json; then
