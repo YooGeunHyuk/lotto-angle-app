@@ -3,8 +3,8 @@ name: Update lotto data
 on:
   workflow_dispatch:
   schedule:
-    # KST 토요일 22:30 + 일요일 09:00 — 동행복권 갱신이 늦더라도 잡히게.
-    - cron: '30 13 * * 6'
+    # KST 토요일 21:30 + 일요일 09:00 — 추첨(20:35) 후 네이버 갱신되면 바로 잡기.
+    - cron: '30 12 * * 6'
     - cron: '0 0 * * 0'
 
 permissions:
