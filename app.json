@@ -2,7 +2,7 @@
   "expo": {
     "name": "로또될각",
     "slug": "LottoAnalyzer",
-    "version": "1.0.2",
+    "version": "1.0.9",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "lottoanalyzer",
@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.meetyuuu.lottoanalyzer",
-      "buildNumber": "34",
+      "buildNumber": "41",
       "infoPlist": {
         "UIViewControllerBasedStatusBarAppearance": false,
         "ITSAppUsesNonExemptEncryption": false,
@@ -22,7 +22,7 @@
     },
     "android": {
       "package": "com.meetyuuu.lottoanalyzer",
-      "versionCode": 3,
+      "versionCode": 14,
       "adaptiveIcon": {
         "backgroundColor": "#F6DF8F",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -30,7 +30,12 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyBqqQsrMOWsgGDhYGaNWQdVSsmZ_O9xSiw"
+        }
+      }
     },
     "web": {
       "output": "static",
@@ -44,10 +49,7 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
-          "dark": {
-            "backgroundColor": "#000000"
-          }
+          "backgroundColor": "#ffffff"
         }
       ],
       [
@@ -94,10 +96,6 @@
     },
     "updates": {
       "enabled": false
-    },
-    "react-native-google-mobile-ads": {
-      "android_app_id": "ca-app-pub-5697680589501542~1429646675",
-      "ios_app_id": "ca-app-pub-5697680589501542~7803483333"
     }
   }
 }

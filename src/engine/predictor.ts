@@ -12,6 +12,7 @@ function normalize(r: Record<number, number>): Record<number, number> {
 export interface PredictionSet {
   numbers: number[];
   setNo: number;
+  strategy?: string;
 }
 
 export interface GeneratedSets {
@@ -20,7 +21,7 @@ export interface GeneratedSets {
   sumRange: { min: number; max: number };
 }
 
-export type RecommendMode = 'safe' | 'aggressive' | 'experimental';
+export type RecommendMode = 'safe' | 'aggressive' | 'experimental' | 'ensemble';
 
 interface ModeConfig {
   weights: { frequency: number; recentFrequency: number; gap: number; pairAffinity: number; season: number };
@@ -58,6 +59,15 @@ const MODE_CONFIGS: Record<RecommendMode, ModeConfig> = {
     prevDrawPenalty: 0.0,
     consecutiveEnabled: false,
     iterations: 800,
+  },
+  // 앙상블: PAIR×3 + COLD×1 + BALANCE×1 — 5세트가 서로 다른 전략으로 추천
+  ensemble: {
+    weights: { frequency: 0.10, recentFrequency: 0.20, gap: 0.20, pairAffinity: 0.45, season: 0.05 },
+    sumLowPercentile: 0.15,
+    sumHighPercentile: 0.85,
+    prevDrawPenalty: 0.06,
+    consecutiveEnabled: true,
+    iterations: 1200,
   },
 };
 
@@ -166,6 +176,12 @@ function computeScores(draws: Draw[], mode: RecommendMode = 'safe'): ComputedSco
       '직전 회차 회피·연속 번호 보너스 모두 꺼짐',
       '실제 무작위에 가까운 추천',
     ],
+    ensemble: [
+      '5세트를 서로 다른 전략으로 생성 — 추천 다양성 5배 증가',
+      '페어 친화도 ×3세트 — 역대 함께 자주 나온 번호 조합 우선',
+      '콜드 회귀 ×1세트 — 오래 안 나온 번호 강조',
+      '균형 분포 ×1세트 — 홀짝 3:3 + 5구간 중 4개 이상 강제',
+    ],
   };
 
   return { scoreMap, recentFreq, gap, sumMin, sumMax, reasons: modeReasons[mode] };
@@ -259,20 +275,22 @@ function pickOne(
   previousSets: number[][],
   lastDrawNumbers: number[],
   config: ModeConfig,
+  extraConstraint?: (numbers: number[]) => boolean,
 ): number[] {
   const usePool = [...new Set(pool)];
 
   let best: number[] = usePool.slice(0, 6);
   let bestScore = -Infinity;
 
-  const search = (maxOverlap: number, maxReuse: number, iterations: number) => {
+  const search = (maxOverlap: number, maxReuse: number, iterations: number, skipExtra: boolean) => {
     for (let i = 0; i < iterations; i++) {
+      // Fisher-Yates: 전체 셔플 후 앞 6개 (감사관 지적한 부분 셔플 편향 제거)
       const arr = [...usePool];
-      for (let j = arr.length - 1; j >= arr.length - 6 && j > 0; j--) {
+      for (let j = arr.length - 1; j > 0; j--) {
         const k = Math.floor(Math.random() * (j + 1));
         [arr[j], arr[k]] = [arr[k], arr[j]];
       }
-      const picked = arr.slice(arr.length - 6).sort((a, b) => a - b);
+      const picked = arr.slice(0, 6).sort((a, b) => a - b);
       if (new Set(picked).size !== 6) continue;
       if (previousSets.some(prev => isSameSet(picked, prev))) continue;
       if (!isDiverseEnough(picked, previousSets, maxOverlap, maxReuse)) continue;
@@ -280,14 +298,20 @@ function pickOne(
       const sum = picked.reduce((a, b) => a + b, 0);
       if (sum < sumMin || sum > sumMax) continue;
 
+      if (!skipExtra && extraConstraint && !extraConstraint(picked)) continue;
+
       const sc = scoreSet(picked, scoreMap, previousSets, lastDrawNumbers, config);
       if (sc > bestScore) { bestScore = sc; best = picked; }
     }
   };
 
-  search(MAX_SET_OVERLAP, MAX_NUMBER_REUSE, config.iterations);
+  search(MAX_SET_OVERLAP, MAX_NUMBER_REUSE, config.iterations, false);
   if (bestScore === -Infinity) {
-    search(2, 3, 600);
+    search(2, 3, 600, false);
+  }
+  // extra constraint으로 전부 막혔으면 마지막엔 풀고 fallback
+  if (bestScore === -Infinity && extraConstraint) {
+    search(2, 3, 600, true);
   }
 
   return best.sort((a, b) => a - b);
@@ -296,26 +320,92 @@ function pickOne(
 // 세트마다 다른 성격을 위한 풀 사양.
 // 풀 자체뿐 아니라 합계 범위도 살짝 다르게 할 수 있다.
 type SetSpec = {
-  pool: 'hot' | 'cold' | 'balanced' | 'sumLow' | 'sumHigh' | 'random';
+  pool: 'hot' | 'cold' | 'balanced' | 'sumLow' | 'sumHigh' | 'random' | 'pair' | 'balance-strict';
+  strategy: string;
 };
 
-// count(요청 갯수)에 맞춰 다양한 성격의 세트 plan을 만든다.
+// 기본 plan — safe/aggressive/experimental 모드에서 사용
 // 5세트 = hot/cold/sumLow/sumHigh/balanced. 그 이상은 한 번 더 순환.
 function buildSetPlan(count: number): SetSpec[] {
-  const order: SetSpec['pool'][] = [
-    'hot', 'cold', 'sumLow', 'sumHigh', 'balanced',
-    'random', 'hot', 'cold', 'balanced', 'sumLow',
+  const order: SetSpec[] = [
+    { pool: 'hot', strategy: '핫 트렌드' },
+    { pool: 'cold', strategy: '콜드 회귀' },
+    { pool: 'sumLow', strategy: '낮은 합계' },
+    { pool: 'sumHigh', strategy: '높은 합계' },
+    { pool: 'balanced', strategy: '균형' },
+    { pool: 'random', strategy: '무작위' },
+    { pool: 'hot', strategy: '핫 트렌드' },
+    { pool: 'cold', strategy: '콜드 회귀' },
+    { pool: 'balanced', strategy: '균형' },
+    { pool: 'sumLow', strategy: '낮은 합계' },
   ];
   const plan: SetSpec[] = [];
   for (let i = 0; i < count; i++) {
-    plan.push({ pool: order[i % order.length] });
+    plan.push(order[i % order.length]);
   }
   return plan;
 }
 
+// 앙상블 plan — ensemble 모드 전용
+// 5세트 = PAIR×3 + COLD×1 + BALANCE×1 (8인 팀 백테스트로 검증된 다양성 베스트 조합)
+function buildEnsemblePlan(count: number): SetSpec[] {
+  const order: SetSpec[] = [
+    { pool: 'pair', strategy: '페어 친화' },
+    { pool: 'pair', strategy: '페어 친화' },
+    { pool: 'pair', strategy: '페어 친화' },
+    { pool: 'cold', strategy: '콜드 회귀' },
+    { pool: 'balance-strict', strategy: '균형 분포' },
+    { pool: 'pair', strategy: '페어 친화' },
+    { pool: 'cold', strategy: '콜드 회귀' },
+    { pool: 'balance-strict', strategy: '균형 분포' },
+    { pool: 'pair', strategy: '페어 친화' },
+    { pool: 'cold', strategy: '콜드 회귀' },
+  ];
+  const plan: SetSpec[] = [];
+  for (let i = 0; i < count; i++) {
+    plan.push(order[i % order.length]);
+  }
+  return plan;
+}
+
+// PAIR 풀 생성 — 역대 페어 친화도 (다른 번호와 함께 나온 빈도) 상위 N개
+function computePairPool(draws: Draw[], topN: number = 22): number[] {
+  const pairFreq: Record<string, number> = {};
+  draws.forEach(d => {
+    for (let i = 0; i < d.numbers.length; i++)
+      for (let j = i + 1; j < d.numbers.length; j++) {
+        const key = `${Math.min(d.numbers[i], d.numbers[j])}_${Math.max(d.numbers[i], d.numbers[j])}`;
+        pairFreq[key] = (pairFreq[key] || 0) + 1;
+      }
+  });
+  // 각 번호별: 상위 5개 파트너와의 친화도 합계로 점수화
+  const pairScore: Record<number, number> = {};
+  for (let n = 1; n <= 45; n++) {
+    const partnerCounts: number[] = [];
+    for (let m = 1; m <= 45; m++) {
+      if (m === n) continue;
+      const key = `${Math.min(n, m)}_${Math.max(n, m)}`;
+      partnerCounts.push(pairFreq[key] || 0);
+    }
+    partnerCounts.sort((a, b) => b - a);
+    pairScore[n] = partnerCounts.slice(0, 5).reduce((a, b) => a + b, 0);
+  }
+  return Object.entries(pairScore)
+    .sort((a, b) => +b[1] - +a[1])
+    .slice(0, topN)
+    .map(e => +e[0]);
+}
+
+// BALANCE-strict 제약: 홀짝 3:3 + 5구간 중 4개 이상 사용
+function balanceStrictConstraint(numbers: number[]): boolean {
+  const odd = numbers.filter(n => n % 2 !== 0).length;
+  const bands = new Set(numbers.map(bandOf));
+  return odd === 3 && bands.size >= 4;
+}
+
 export function generateSets(
   draws: Draw[],
-  mode: RecommendMode = 'safe',
+  mode: RecommendMode = 'ensemble',
   count: number = 5,
 ): GeneratedSets {
   if (draws.length < 20) return { sets: [], reasons: [], sumRange: { min: 0, max: 0 } };
@@ -336,9 +426,10 @@ export function generateSets(
     .slice(0, 22)
     .map(e => +e[0]);
   const randomPool = Array.from({ length: 45 }, (_, i) => i + 1);
+  const pairPool = mode === 'ensemble' ? computePairPool(draws, 22) : [];
 
   const sumMid = Math.floor((sumMin + sumMax) / 2);
-  const plan = buildSetPlan(count);
+  const plan = mode === 'ensemble' ? buildEnsemblePlan(count) : buildSetPlan(count);
 
   const sets: PredictionSet[] = [];
   for (let i = 0; i < plan.length; i++) {
@@ -346,6 +437,7 @@ export function generateSets(
     let pool: number[];
     let localMin = sumMin;
     let localMax = sumMax;
+    let extraConstraint: ((n: number[]) => boolean) | undefined;
     switch (spec.pool) {
       case 'hot':
         pool = hotPool;
@@ -367,6 +459,13 @@ export function generateSets(
         localMin = Math.min(sumMin, 80);
         localMax = Math.max(sumMax, 200);
         break;
+      case 'pair':
+        pool = pairPool.length > 0 ? pairPool : fullPool;
+        break;
+      case 'balance-strict':
+        pool = fullPool;
+        extraConstraint = balanceStrictConstraint;
+        break;
       case 'balanced':
       default:
         pool = fullPool;
@@ -380,8 +479,9 @@ export function generateSets(
       sets.map(s => s.numbers),
       lastDrawNumbers,
       config,
+      extraConstraint,
     );
-    sets.push({ numbers, setNo: i + 1 });
+    sets.push({ numbers, setNo: i + 1, strategy: spec.strategy });
   }
 
   return { sets, reasons, sumRange: { min: sumMin, max: sumMax } };

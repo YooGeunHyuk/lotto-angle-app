@@ -33,7 +33,7 @@ export default function HomeContent({
   const latest = draws[draws.length - 1];
   const latestSum = latest.numbers.reduce((a, b) => a + b, 0);
   const nextDrwNo = latest.drwNo + 1;
-  const [mode, setMode] = useState<RecommendMode>('safe');
+  const [mode, setMode] = useState<RecommendMode>('ensemble');
   const [count, setCount] = useState<number>(5);
   const initialAnalysis = generateSets(draws, mode, count);
   const [result, setResult] = useState<ReturnType<typeof generateSets> | null>(null);
@@ -129,7 +129,7 @@ export default function HomeContent({
           <View style={s.optionRow}>
             <Text style={s.optionLabel}>모드</Text>
             <View style={s.segment}>
-              {(['safe', 'aggressive', 'experimental'] as const).map(m => (
+              {(['ensemble', 'safe', 'aggressive', 'experimental'] as const).map(m => (
                 <TouchableOpacity
                   key={m}
                   style={[s.segmentBtn, mode === m && s.segmentBtnActive]}
@@ -137,7 +137,10 @@ export default function HomeContent({
                   activeOpacity={0.75}
                 >
                   <Text style={[s.segmentText, mode === m && s.segmentTextActive]}>
-                    {m === 'safe' ? '🛡️ 안정' : m === 'aggressive' ? '🔥 공격' : '🎲 실험'}
+                    {m === 'ensemble' ? '🎯 앙상블'
+                      : m === 'safe' ? '🛡️ 안정'
+                      : m === 'aggressive' ? '🔥 공격'
+                      : '🎲 실험'}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -191,7 +194,10 @@ export default function HomeContent({
                   activeOpacity={0.6}
                   onPress={() => toggleSelectSet(set.numbers)}
                 >
-                  <Text style={s.setNo}>{set.setNo}</Text>
+                  <View style={s.setLabelCol}>
+                    <Text style={s.setNo}>{set.setNo}</Text>
+                    {set.strategy && <Text style={s.strategyBadge}>{set.strategy}</Text>}
+                  </View>
                   <View style={s.ballsRow}>
                     {set.numbers.map((n, i) => <Ball key={i} num={n} size={34} />)}
                   </View>
@@ -257,7 +263,9 @@ const s = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   plus: { color: C.dim, fontSize: 14 },
   setRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderTopWidth: 1, borderTopColor: C.border, gap: 6 },
-  setNo: { fontSize: 11, fontWeight: '700', color: C.dim, width: 14 },
+  setLabelCol: { width: 52, alignItems: 'flex-start' },
+  setNo: { fontSize: 11, fontWeight: '700', color: C.dim },
+  strategyBadge: { fontSize: 9, fontWeight: '700', color: C.logo, marginTop: 2 },
   ballsRow: { flex: 1, flexDirection: 'row', justifyContent: 'space-between' },
   sum: { fontSize: 11, color: C.gray, width: 28, textAlign: 'right' },
   starIcon: { marginLeft: 4 },
