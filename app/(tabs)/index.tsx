@@ -10,7 +10,7 @@ import SumGeneratorContent from '@/src/screens/SumGeneratorContent';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context'; // 🌟 여기서 한 번만 사용
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'; // 🌟 여기서 한 번만 사용
 
 const { width } = Dimensions.get('window');
 
@@ -19,7 +19,7 @@ const TABS = [
   { label: '고정추천', icon: 'pin' },
   { label: '합계생성', icon: 'options' },
   { label: '내 번호', icon: 'ticket' },
-  { label: '명당', icon: 'map' },
+  { label: '명당지도', icon: 'map' },
   { label: '통계', icon: 'bar-chart' }
 ];
 
@@ -37,6 +37,7 @@ export default function App() {
   const [scrollEnabled, setScrollEnabled] = useState(true); 
   const [ticketsRefreshKey, setTicketsRefreshKey] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
+  const insets = useSafeAreaInsets();
 
   const loadDraws = useCallback(async () => {
     const [remoteDraws, userDraws] = await Promise.all([
@@ -92,7 +93,7 @@ export default function App() {
           <View style={{ width }}><StatsContent draws={draws} /></View>
         </ScrollView>
 
-        <View style={s.tabBar}>
+        <View style={[s.tabBar, { paddingBottom: Math.max(4, insets.bottom / 2) }]}>
           {TABS.map((tab, i) => (
             <TouchableOpacity key={tab.label} style={s.tab} onPress={() => goTo(i)}>
               <Ionicons name={tab.icon as any} size={19} color={page === i ? '#1A1A1A' : '#BBBBBB'} />
