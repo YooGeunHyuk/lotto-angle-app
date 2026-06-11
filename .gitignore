@@ -46,3 +46,7 @@ app-example
 .claude/
 docs/assets/
 docs/golf-demo.html
+
+# 디자인 작업 원본 (용량 커서 git 제외, 로컬 보관)
+screenshots/*.psd
+screenshots/무제 폴더/

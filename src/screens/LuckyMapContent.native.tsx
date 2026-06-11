@@ -1,14 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { FlatList, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, InteractionManager, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import AdBanner from '../components/AdBanner';
 import HeaderInfo from '../components/HeaderInfo';
 import ScreenHeader from '../components/ScreenHeader';
 import { distanceKm, LuckyStore, LuckyStoreMode, LuckyStoreWithDistance, loadLuckyStores, luckyStorePayload, luckyStores, nationalLuckyStores, nearbyLuckyStores, StoreLocation, storeSummary, subscribeLuckyStores } from '../data/luckyStores';
 
-const C = { bg: '#FFFFFF', card: '#F7F7F7', border: '#EEEEEE', black: '#1A1A1A', gray: '#999999', dim: '#CCCCCC', accent: '#D94F2A', green: '#137A4A' };
+const C = { bg: '#FFFFFF', card: '#F7F7F7', border: '#EEEEEE', black: '#1A1A1A', gray: '#999999', dim: '#CCCCCC', accent: '#D94F2A', green: '#137A4A', selected: '#2563EB' };
 const KOREA_REGION = { latitude: 36.4203004, longitude: 128.31796, latitudeDelta: 5.2, longitudeDelta: 4.2 };
 const MARKER_LIMIT = 650;
 const API_BASE = 'https://www.dhlottery.co.kr';
@@ -489,7 +489,7 @@ export default function LuckyMapContent({ isActive = true }: { isActive?: boolea
         : districtSummaries.map(item => item.topStore)
       : regionSummaries.map(item => item.topStore)
     : displayStores;
-  const markerStores = markerSource.slice(0, MARKER_LIMIT);
+  const markerStores = useMemo(() => markerSource.slice(0, MARKER_LIMIT), [markerSource]);
   const selectedStore = markerSource.find(store => store.id === selectedId) ?? markerStores[0] ?? displayStores[0];
   const title = sectionTitle(mainMode, localView, nationalView, Boolean(location), selectedRegion, selectedDistrict);
   const needsLocation = mainMode === 'local';
@@ -575,12 +575,14 @@ export default function LuckyMapContent({ isActive = true }: { isActive?: boolea
 
   function focusStore(store: DisplayStore) {
     setSelectedId(store.id);
-    mapRef.current?.animateToRegion({
-      latitude: store.lat,
-      longitude: store.lng,
-      latitudeDelta: 0.035,
-      longitudeDelta: 0.035,
-    }, 350);
+    InteractionManager.runAfterInteractions(() => {
+      mapRef.current?.animateToRegion({
+        latitude: store.lat,
+        longitude: store.lng,
+        latitudeDelta: 0.035,
+        longitudeDelta: 0.035,
+      }, 350);
+    });
   }
 
   function resetListPosition() {
@@ -657,8 +659,8 @@ export default function LuckyMapContent({ isActive = true }: { isActive?: boolea
     mapRef.current?.animateToRegion({
       latitude: location.lat,
       longitude: location.lng,
-      latitudeDelta: 0.25,
-      longitudeDelta: 0.25,
+      latitudeDelta: 0.02,
+      longitudeDelta: 0.02,
     }, 350);
   }
 
@@ -708,11 +710,11 @@ export default function LuckyMapContent({ isActive = true }: { isActive?: boolea
         <View style={s.subTabs}>
           {mainMode === 'national' ? NATIONAL_VIEWS.map(item => (
             <TouchableOpacity key={item.value} style={[s.subTab, nationalView === item.value && s.subTabActive]} onPress={() => selectNationalView(item.value)} activeOpacity={0.78}>
-              <Text style={[s.subTabText, nationalView === item.value && s.subTabTextActive]}>{item.label}</Text>
+              <Text style={[s.subTabText, nationalView === item.value && s.subTabTextActive]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>{item.label}</Text>
             </TouchableOpacity>
           )) : LOCAL_VIEWS.map(item => (
             <TouchableOpacity key={item.value} style={[s.subTab, localView === item.value && s.subTabActive]} onPress={() => selectLocalView(item.value)} activeOpacity={0.78}>
-              <Text style={[s.subTabText, localView === item.value && s.subTabTextActive]}>{item.label}</Text>
+              <Text style={[s.subTabText, localView === item.value && s.subTabTextActive]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>{item.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -734,14 +736,14 @@ export default function LuckyMapContent({ isActive = true }: { isActive?: boolea
               showsMyLocationButton={false}
               showsCompass
             >
-              {markerStores.map((store, index) => (
+              {markerStores.map(store => (
                 <Marker
-                  key={`marker-${store.id}-${store.name}-${index}`}
+                  key={`marker-${store.id}`}
+                  identifier={store.id}
                   coordinate={{ latitude: store.lat, longitude: store.lng }}
-                  title={store.name}
-                  description={storeSummary(store)}
                   pinColor={store.firstWins > 0 ? C.accent : store.secondWins > 0 ? C.green : C.gray}
-                  onPress={() => setSelectedId(store.id)}
+                  tracksViewChanges={false}
+                  onPress={() => focusStore(store)}
                 />
               ))}
             </MapView>
@@ -836,9 +838,9 @@ const s = StyleSheet.create({
   modeTextActive: { color: '#FFFFFF' },
   subControlRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginHorizontal: 16, marginTop: 8, padding: 6, borderWidth: 1, borderColor: C.border, backgroundColor: '#FBFBFB', borderRadius: 18 },
   subTabs: { flex: 1, flexDirection: 'row', gap: 6 },
-  subTab: { flex: 1, minHeight: 32, borderWidth: 1, borderColor: C.border, backgroundColor: '#FFFFFF', borderRadius: 999, paddingHorizontal: 7, alignItems: 'center', justifyContent: 'center' },
+  subTab: { flex: 1, minHeight: 32, borderWidth: 1, borderColor: C.border, backgroundColor: '#FFFFFF', borderRadius: 999, paddingHorizontal: 5, alignItems: 'center', justifyContent: 'center' },
   subTabActive: { backgroundColor: C.black, borderColor: C.black },
-  subTabText: { fontSize: 10.5, fontWeight: '800', color: C.gray, textAlign: 'center' },
+  subTabText: { fontSize: 10, fontWeight: '800', color: C.gray, textAlign: 'center' },
   subTabTextActive: { color: '#FFFFFF' },
   mapToggleBtn: { width: 64, height: 32, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderWidth: 1, borderColor: C.border, backgroundColor: '#FFFFFF', borderRadius: 999, paddingHorizontal: 0 },
   mapToggleBtnActive: { backgroundColor: C.black, borderColor: C.black },

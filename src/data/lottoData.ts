@@ -2,7 +2,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import rawData from '../../data/lotto_history.json';
 
 const REMOTE_LOTTO_URLS = [
-  'https://raw.githubusercontent.com/YooGeunHyuk/lotto-angle-app/main/data/lotto_history.json',
   'https://gist.githubusercontent.com/YooGeunHyuk/c43d9902c513e986c4a9ee2bd78eee33/raw/lotto.json',
 ];
 const OFFICIAL_LOTTO_URL = 'https://www.dhlottery.co.kr/common.do?method=getLottoNumber';

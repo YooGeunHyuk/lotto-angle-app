@@ -4,7 +4,7 @@ import { Platform, StyleSheet, View } from 'react-native';
 
 const C = { card: '#F9F9F9', border: '#E5E5E5' };
 const IOS_BANNER_ID = 'ca-app-pub-5697680589501542/9546128236';
-const ANDROID_BANNER_ID = 'ca-app-pub-5697680589501542/4373173083';
+const ANDROID_BANNER_ID = 'ca-app-pub-9317493495237163/2303462800';
 const STORE_SCREENSHOT_MODE = false;
 
 export default function AdBanner() {
