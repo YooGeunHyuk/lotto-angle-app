@@ -3,7 +3,8 @@ name: Update lotto data
 on:
   workflow_dispatch:
   schedule:
-    # KST 토요일 21:30 + 일요일 09:00 — 추첨(20:35) 후 네이버 갱신되면 바로 잡기.
+    # KST 토 20:40(추첨 직후 1순위) + 토 21:30 백업 + 일 09:00 백업 — 네이버 반영 늦어도 놓치지 않게 3회.
+    - cron: '40 11 * * 6'
     - cron: '30 12 * * 6'
     - cron: '0 0 * * 0'
 
