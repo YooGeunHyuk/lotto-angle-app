@@ -8,6 +8,7 @@ import MyTicketsContent from '@/src/screens/MyTicketsContent';
 import StatsContent from '@/src/screens/StatsContent';
 import SumGeneratorContent from '@/src/screens/SumGeneratorContent';
 import { Ionicons } from '@expo/vector-icons';
+import * as Notifications from 'expo-notifications';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'; // 🌟 여기서 한 번만 사용
@@ -68,6 +69,20 @@ export default function App() {
     scrollRef.current?.scrollTo({ x: p * width, animated: true });
     setPage(p);
   };
+
+  // 당첨 알림을 탭하면 '내 번호'(page 3)로 이동. 앱이 알림으로 시작된 경우도 처리.
+  useEffect(() => {
+    function routeFromNotification(response: Notifications.NotificationResponse | null) {
+      const screen = response?.notification.request.content.data?.screen;
+      if (screen === 'tickets') {
+        scrollRef.current?.scrollTo({ x: 3 * width, animated: false });
+        setPage(3);
+      }
+    }
+    const sub = Notifications.addNotificationResponseReceivedListener(routeFromNotification);
+    Notifications.getLastNotificationResponseAsync().then(routeFromNotification);
+    return () => sub.remove();
+  }, []);
 
   const refreshTickets = () => setTicketsRefreshKey(key => key + 1);
 
