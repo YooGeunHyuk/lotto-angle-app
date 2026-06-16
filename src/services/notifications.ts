@@ -76,6 +76,32 @@ function buildDrawNotification(latest: Draw, tickets: SavedTicket[]): { title: s
   };
 }
 
+const DRAW_REMINDER_ID = 'lotto-draw-reminder';
+
+// 매주 토요일 저녁(추첨 ~20:35 전) "번호 챙겼어요?" 리마인더. 기기 로컬시간 기준, 매주 반복.
+export async function scheduleDrawReminder(): Promise<void> {
+  if (!(await hasPermission())) return;
+  try {
+    await Notifications.cancelScheduledNotificationAsync(DRAW_REMINDER_ID);
+  } catch {
+    // 기존 예약이 없을 수 있음 — 무시
+  }
+  await Notifications.scheduleNotificationAsync({
+    identifier: DRAW_REMINDER_ID,
+    content: {
+      title: '🎟️ 오늘 로또 추첨!',
+      body: '저녁 8시 35분 추첨이에요. 번호 챙기셨나요? 지금 추천 받아보세요.',
+      data: { screen: 'home' },
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+      weekday: 7, // 1=일 … 7=토
+      hour: 20,
+      minute: 0,
+    },
+  });
+}
+
 async function fireNewDrawNotification(latest: Draw): Promise<void> {
   const tickets = await getSavedTickets();
   const { title, body } = buildDrawNotification(latest, tickets);

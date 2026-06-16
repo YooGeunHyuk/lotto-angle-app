@@ -5,7 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 import { loadLuckyStores } from '@/src/data/luckyStores';
-import { ensureNotificationPermission, registerBackgroundDrawCheck } from '@/src/services/notifications';
+import { ensureNotificationPermission, registerBackgroundDrawCheck, scheduleDrawReminder } from '@/src/services/notifications';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -20,6 +20,7 @@ export default function RootLayout() {
     (async () => {
       await ensureNotificationPermission();
       await registerBackgroundDrawCheck();
+      await scheduleDrawReminder();
       loadLuckyStores().catch(() => {});
     })();
   }, []);

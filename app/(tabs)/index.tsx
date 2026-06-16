@@ -74,9 +74,10 @@ export default function App() {
   useEffect(() => {
     function routeFromNotification(response: Notifications.NotificationResponse | null) {
       const screen = response?.notification.request.content.data?.screen;
-      if (screen === 'tickets') {
-        scrollRef.current?.scrollTo({ x: 3 * width, animated: false });
-        setPage(3);
+      const target = screen === 'tickets' ? 3 : screen === 'home' ? 0 : -1;
+      if (target >= 0) {
+        scrollRef.current?.scrollTo({ x: target * width, animated: false });
+        setPage(target);
       }
     }
     const sub = Notifications.addNotificationResponseReceivedListener(routeFromNotification);
