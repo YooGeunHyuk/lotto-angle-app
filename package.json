@@ -7,6 +7,7 @@
     "reset-project": "node ./scripts/reset-project.js",
     "update:lotto": "node ./scripts/fetchLottoData.js",
     "update:gist": "node ./scripts/updateGistFromNaver.js",
+    "send:push": "node ./scripts/sendPushNotification.js",
     "update:lucky-stores": "node ./scripts/fetchLuckyStores.js",
     "android": "expo run:android",
     "ios": "expo run:ios",

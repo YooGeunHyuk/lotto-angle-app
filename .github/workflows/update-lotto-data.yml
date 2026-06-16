@@ -27,9 +27,18 @@ jobs:
         run: npm run update:lotto
 
       - name: Sync Gist (Naver scrape → Gist API)
+        id: gist
         env:
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
         run: npm run update:gist
+
+      - name: Send push notification (new draw only)
+        if: steps.gist.outputs.added == 'true'
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          LATEST_DRAW: ${{ steps.gist.outputs.latest }}
+        run: npm run send:push
 
       - name: Commit updated draw database
         run: |

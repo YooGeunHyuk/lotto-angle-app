@@ -6,6 +6,7 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 import { loadLuckyStores } from '@/src/data/luckyStores';
 import { ensureNotificationPermission, registerBackgroundDrawCheck, scheduleDrawReminder } from '@/src/services/notifications';
+import { registerPushToken } from '@/src/services/pushToken';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -21,6 +22,7 @@ export default function RootLayout() {
       await ensureNotificationPermission();
       await registerBackgroundDrawCheck();
       await scheduleDrawReminder();
+      registerPushToken().catch(() => {});
       loadLuckyStores().catch(() => {});
     })();
   }, []);

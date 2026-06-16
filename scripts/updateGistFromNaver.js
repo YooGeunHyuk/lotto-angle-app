@@ -138,6 +138,10 @@ async function main() {
   const merged = [...existing, ...newDraws].sort((a, b) => a.drwNo - b.drwNo);
   console.log(`4) Gist 업데이트 — 총 ${merged.length}회차 (${newDraws.length}개 추가)`);
   await updateGist(merged);
+  // 새 회차가 실제로 추가된 이 실행에서만 신호 → CI가 푸시 1회만 발송(중복 방지).
+  if (process.env.GITHUB_OUTPUT) {
+    require('fs').appendFileSync(process.env.GITHUB_OUTPUT, `added=true\nlatest=${latest.drwNo}\n`);
+  }
   console.log('완료!');
 }
 
