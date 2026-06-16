@@ -20,15 +20,15 @@ export async function registerPushToken(): Promise<void> {
     const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
     if (!token) return;
 
-    await fetch(`${SUPABASE_URL}/rest/v1/push_tokens?on_conflict=token`, {
+    // SECURITY DEFINER RPC로 등록 — anon은 이 함수만 호출 가능(테이블 직접 접근 X).
+    await fetch(`${SUPABASE_URL}/rest/v1/rpc/register_push_token`, {
       method: 'POST',
       headers: {
         apikey: SUPABASE_ANON_KEY,
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
         'Content-Type': 'application/json',
-        Prefer: 'resolution=merge-duplicates',
       },
-      body: JSON.stringify({ token, platform: Platform.OS }),
+      body: JSON.stringify({ p_token: token, p_platform: Platform.OS }),
     });
   } catch {
     // 토큰 등록 실패는 앱 사용에 영향 없음 — 무시
