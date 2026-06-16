@@ -4,7 +4,6 @@ import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
 import { Platform } from 'react-native';
 import { Draw, getRemoteDraws } from '../data/lottoData';
-import { getSavedTickets, rankGame, SavedTicket, TicketRank } from '../data/ticketStore';
 
 const LAST_NOTIFIED_KEY = '@lotto/lastNotifiedDrwNo';
 const BACKGROUND_TASK = 'lotto-new-draw-check';
@@ -43,39 +42,6 @@ export async function ensureNotificationPermission(): Promise<boolean> {
   return result.granted;
 }
 
-const RANK_ORDER: TicketRank[] = ['1등', '2등', '3등', '4등', '5등'];
-
-// 저장된 내 번호 중 이번 회차 것을 채점해 개인화된 알림 문구를 만든다.
-// 내 번호가 없으면 기존처럼 일반 "새 회차" 알림으로 폴백.
-function buildDrawNotification(latest: Draw, tickets: SavedTicket[]): { title: string; body: string } {
-  const mine = tickets.filter(ticket => ticket.drawNo === latest.drwNo);
-  if (mine.length === 0) {
-    return {
-      title: '🎯 새 회차 업데이트',
-      body: `${latest.drwNo}회차 당첨번호가 업데이트되었습니다.`,
-    };
-  }
-
-  const games = mine.flatMap(ticket => ticket.games.map(game => rankGame(game.numbers, latest)));
-  const winning = games.filter(game => game.rank !== '낙첨' && game.rank !== '추첨전');
-
-  if (winning.length > 0) {
-    const best = RANK_ORDER.find(rank => winning.some(game => game.rank === rank));
-    const extra = winning.length > 1 ? ` (${winning.length}게임 당첨)` : '';
-    return {
-      title: `🎉 ${latest.drwNo}회 당첨!`,
-      body: `내 번호가 ${best}에 당첨됐어요${extra}. 지금 확인해보세요!`,
-    };
-  }
-
-  const bestMatch = games.reduce((max, game) => Math.max(max, game.matchedNumbers.length), 0);
-  const matchText = bestMatch >= 2 ? ` (최고 ${bestMatch}개 일치)` : '';
-  return {
-    title: `${latest.drwNo}회 결과 발표`,
-    body: `이번엔 아쉽게 낙첨이에요${matchText}. 다음 회차도 화이팅! 🍀`,
-  };
-}
-
 const DRAW_REMINDER_ID = 'lotto-draw-reminder';
 
 // 매주 토요일 저녁(추첨 ~20:35 전) "번호 챙겼어요?" 리마인더. 기기 로컬시간 기준, 매주 반복.
@@ -103,12 +69,10 @@ export async function scheduleDrawReminder(): Promise<void> {
 }
 
 async function fireNewDrawNotification(latest: Draw): Promise<void> {
-  const tickets = await getSavedTickets();
-  const { title, body } = buildDrawNotification(latest, tickets);
   await Notifications.scheduleNotificationAsync({
     content: {
-      title,
-      body,
+      title: '🎯 새 회차 업데이트',
+      body: `${latest.drwNo}회차 당첨번호가 업데이트되었습니다.`,
       data: { drwNo: latest.drwNo, screen: 'tickets' },
     },
     trigger: null,
