@@ -166,9 +166,11 @@ export function generateSajuNumbers(birth: Date, today: Date, draws: Draw[], bir
     return w;
   }
 
-  const TAGS = ['사주 강세', '통계 핫', '사주×통계', '균형', '행운수 중심'];
+  // 사주 강세 3세트 + 사주×통계 2세트
+  const TAGS = ['사주 강세', '사주 강세', '사주 강세', '사주×통계', '사주×통계'];
   const sets: SajuNumberSet[] = [];
   for (let si = 0; si < 5; si++) {
+    const sajuHeavy = si < 3;
     const rng = makeRng(b.index * 1000 + t.index * 37 + si * 101 + hourSeed + 1);
     const picked = new Set<number>();
     while (picked.size < 6) {
@@ -176,9 +178,15 @@ export function generateSajuNumbers(birth: Date, today: Date, draws: Draw[], bir
       for (let n = 1; n <= 45; n++) {
         if (picked.has(n)) continue;
         let w = baseWeight(n);
-        if (si === 0 && n % 10 === luckyDigit) w += 1;       // 사주 강세
-        if (si === 1) w += (freq[n] / maxFreq);              // 통계 핫
-        if (si === 4 && n % 10 === luckyDigit) w += 1.5;     // 행운수 중심
+        if (sajuHeavy) {
+          // 사주 강세: 행운수·내 오행 가중 강화
+          if (n % 10 === luckyDigit) w += 1.4;
+          if (Math.floor((n - 1) / 9) === myEl) w += 0.8;
+        } else {
+          // 사주×통계: 출현빈도 더 반영
+          w += (freq[n] / maxFreq) * 1.0;
+          if (n % 10 === luckyDigit) w += 0.4;
+        }
         const reps = Math.max(1, Math.round(w * 3));
         for (let r = 0; r < reps; r++) pool.push(n);
       }
