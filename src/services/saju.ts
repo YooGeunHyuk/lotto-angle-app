@@ -68,10 +68,22 @@ export interface DailyFortune {
   todayElement: Element; // 오늘 오행
   relationLabel: string; // 사주 한 줄 이유
   luckyDigit: number; // 오늘 행운 끝자리 (0~9)
+  hasTime: boolean; // 출생시 반영 여부
+  hourStem?: string; // 시주 천간
+  hourElement?: Element; // 시주 오행
 }
 
-// 생년월일 + 오늘 → 오늘의 로또운(사주 레이어). 통계 결합 전 단계.
-export function getDailyFortune(birth: Date, today: Date): DailyFortune {
+// 태어난 시(0~23) → 시지 인덱스. 자시 = 23~01시.
+function hourBranch(hour: number): number {
+  return Math.floor(((hour + 1) % 24) / 2);
+}
+// 시간(時干) — 오서둔(五鼠遁): 일간 기준 자시 천간 + 시지 진행.
+function hourStem(dayStem: number, hourBr: number): number {
+  return ((dayStem % 5) * 2 + hourBr) % 10;
+}
+
+// 생년월일(+선택 출생시) + 오늘 → 오늘의 로또운(사주 레이어). 통계 결합 전 단계.
+export function getDailyFortune(birth: Date, today: Date, birthHour?: number | null): DailyFortune {
   const birthGz = dayGanji(birth);
   const todayGz = dayGanji(today);
   const myEl = stemElement(birthGz.stem);
@@ -80,16 +92,27 @@ export function getDailyFortune(birth: Date, today: Date): DailyFortune {
   const relation = elementRelation(myEl, todayEl);
   let score = RELATION_SCORE[relation];
 
-  // 오늘 일진 지지 오행과의 보조 관계로 ±, 그리고 날짜별 결정적 미세 변동
-  const branchEl = BRANCH_ELEMENT[todayGz.branch];
-  const branchRel = elementRelation(myEl, branchEl);
+  // 오늘 일진 지지 오행과의 보조 관계로 ±
+  const branchRel = elementRelation(myEl, BRANCH_ELEMENT[todayGz.branch]);
   score += [0, 2, 4, 7, -4][branchRel];
-  // 결정적 jitter (생일×오늘 조합으로 -4~+4) — 같은 관계라도 날마다 미묘하게 다르게
-  const jitter = ((birthGz.index * 7 + todayGz.index * 13) % 9) - 4;
+
+  // 시주(時柱) — 출생시 있으면 내 차트 보조 오행으로 점수에 반영
+  let hStem: number | null = null;
+  let hEl: number | null = null;
+  if (birthHour != null) {
+    hStem = hourStem(birthGz.stem, hourBranch(birthHour));
+    hEl = stemElement(hStem);
+    const secRel = elementRelation(hEl, todayEl);
+    score += Math.round((RELATION_SCORE[secRel] - 60) * 0.3);
+  }
+
+  // 결정적 jitter (-4~+4) — 같은 관계라도 날마다 미묘하게 다르게
+  const seedExtra = hStem != null ? hStem * 3 : 0;
+  const jitter = ((birthGz.index * 7 + todayGz.index * 13 + seedExtra) % 9) - 4;
   score = Math.max(1, Math.min(99, score + jitter));
 
   const grade: Grade = score >= 75 ? 'GO' : score >= 55 ? '보통' : '패스';
-  const luckyDigit = (birthGz.stem + todayGz.index) % 10;
+  const luckyDigit = (birthGz.stem + (hStem ?? 0) + todayGz.index) % 10;
 
   return {
     score,
@@ -100,6 +123,9 @@ export function getDailyFortune(birth: Date, today: Date): DailyFortune {
     todayElement: ELEMENTS[todayEl],
     relationLabel: RELATION_LABEL[relation],
     luckyDigit,
+    hasTime: birthHour != null,
+    hourStem: hStem != null ? STEMS[hStem] : undefined,
+    hourElement: hEl != null ? ELEMENTS[hEl] : undefined,
   };
 }
 
@@ -119,12 +145,13 @@ export interface SajuNumberSet {
 
 // 사주 가중(행운 끝자리·오행 구간) + 통계(출현빈도) 결합으로 5세트 생성.
 // (birth, today)로 시드 고정 → 같은 날 같은 사람은 항상 같은 5세트.
-export function generateSajuNumbers(birth: Date, today: Date, draws: Draw[]): SajuNumberSet[] {
+export function generateSajuNumbers(birth: Date, today: Date, draws: Draw[], birthHour?: number | null): SajuNumberSet[] {
   const b = dayGanji(birth);
   const t = dayGanji(today);
-  const fortune = getDailyFortune(birth, today);
+  const fortune = getDailyFortune(birth, today, birthHour);
   const luckyDigit = fortune.luckyDigit;
   const myEl = ELEMENTS.indexOf(fortune.myElement);
+  const hourSeed = birthHour != null ? (hourStem(b.stem, hourBranch(birthHour)) + 1) * 17 : 0;
 
   const freq = new Array(46).fill(0);
   draws.forEach(d => d.numbers.forEach(n => { if (n >= 1 && n <= 45) freq[n]++; }));
@@ -141,7 +168,7 @@ export function generateSajuNumbers(birth: Date, today: Date, draws: Draw[]): Sa
   const TAGS = ['사주 강세', '통계 핫', '사주×통계', '균형', '행운수 중심'];
   const sets: SajuNumberSet[] = [];
   for (let si = 0; si < 5; si++) {
-    const rng = makeRng(b.index * 1000 + t.index * 37 + si * 101 + 1);
+    const rng = makeRng(b.index * 1000 + t.index * 37 + si * 101 + hourSeed + 1);
     const picked = new Set<number>();
     while (picked.size < 6) {
       const pool: number[] = [];
