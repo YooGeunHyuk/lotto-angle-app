@@ -145,6 +145,19 @@ export interface SajuNumberSet {
   tag: string;
 }
 
+// 분포 품질: 3개 이상 연속 금지(4연속 같은 비현실 조합 차단) + 최소 3개 번호대 사용(한 구간 몰림 방지).
+function isWellDistributed(sorted: number[]): boolean {
+  let run = 1;
+  let maxRun = 1;
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] === sorted[i - 1] + 1) { run++; maxRun = Math.max(maxRun, run); }
+    else run = 1;
+  }
+  if (maxRun >= 3) return false;
+  const bands = new Set(sorted.map(n => Math.floor(n / 10))); // 0~4 (1-9,10-19,20-29,30-39,40-45)
+  return bands.size >= 3;
+}
+
 // 사주 가중(행운 끝자리·오행 구간) + 통계(출현빈도) 결합으로 5세트 생성.
 // (birth, today)로 시드 고정 → 같은 날 같은 사람은 항상 같은 5세트.
 export function generateSajuNumbers(birth: Date, today: Date, draws: Draw[], birthHour?: number | null, birthMin?: number | null): SajuNumberSet[] {
@@ -180,28 +193,34 @@ export function generateSajuNumbers(birth: Date, today: Date, draws: Draw[], bir
   const sets: SajuNumberSet[] = [];
   for (let si = 0; si < 5; si++) {
     const sajuHeavy = si < 3;
-    const rng = makeRng(b.index * 1000 + t.index * 37 + si * 101 + hourSeed + 1);
-    const picked = new Set<number>();
-    while (picked.size < 6) {
-      const pool: number[] = [];
-      for (let n = 1; n <= 45; n++) {
-        if (picked.has(n)) continue;
-        let w = baseWeight(n);
-        if (sajuHeavy) {
-          // 사주 강세: 행운수·내 오행 가중 강화
-          if (n % 10 === luckyDigit) w += 1.4;
-          if (Math.floor((n - 1) / 9) === myEl) w += 0.8;
-        } else {
-          // 사주×통계(앙상블): 추천엔진 점수 더 반영
-          w += statW(n) * 1.0;
-          if (n % 10 === luckyDigit) w += 0.4;
+    let chosen: number[] = [];
+    // 분포 조건 만족할 때까지 시드 바꿔 재시도(결정적). 못 찾으면 마지막 것 사용.
+    for (let attempt = 0; attempt < 40; attempt++) {
+      const rng = makeRng(b.index * 1000 + t.index * 37 + si * 101 + hourSeed + 1 + attempt * 7919);
+      const picked = new Set<number>();
+      while (picked.size < 6) {
+        const pool: number[] = [];
+        for (let n = 1; n <= 45; n++) {
+          if (picked.has(n)) continue;
+          let w = baseWeight(n);
+          if (sajuHeavy) {
+            // 사주 강세: 행운수·내 오행 가중 강화
+            if (n % 10 === luckyDigit) w += 1.4;
+            if (Math.floor((n - 1) / 9) === myEl) w += 0.8;
+          } else {
+            // 사주×통계(앙상블): 추천엔진 점수 더 반영
+            w += statW(n) * 1.0;
+            if (n % 10 === luckyDigit) w += 0.4;
+          }
+          const reps = Math.max(1, Math.round(w * 3));
+          for (let r = 0; r < reps; r++) pool.push(n);
         }
-        const reps = Math.max(1, Math.round(w * 3));
-        for (let r = 0; r < reps; r++) pool.push(n);
+        picked.add(pool[Math.floor(rng() * pool.length)]);
       }
-      picked.add(pool[Math.floor(rng() * pool.length)]);
+      chosen = [...picked].sort((a, b2) => a - b2);
+      if (isWellDistributed(chosen)) break;
     }
-    sets.push({ numbers: [...picked].sort((a, b2) => a - b2), tag: TAGS[si] });
+    sets.push({ numbers: chosen, tag: TAGS[si] });
   }
   return sets;
 }
