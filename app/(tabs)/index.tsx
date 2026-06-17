@@ -5,6 +5,7 @@ import FixedPickContent from '@/src/screens/FixedPickContent';
 import HomeContent from '@/src/screens/HomeContent';
 import LuckyMapContent from '@/src/screens/LuckyMapContent';
 import MyTicketsContent from '@/src/screens/MyTicketsContent';
+import SajuContent from '@/src/screens/SajuContent';
 import StatsContent from '@/src/screens/StatsContent';
 import SumGeneratorContent from '@/src/screens/SumGeneratorContent';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,7 +22,8 @@ const TABS = [
   { label: '합계생성', icon: 'options' },
   { label: '내 번호', icon: 'ticket' },
   { label: '명당지도', icon: 'map' },
-  { label: '통계', icon: 'bar-chart' }
+  { label: '통계', icon: 'bar-chart' },
+  { label: '로또사주', icon: 'star' }
 ];
 
 function mergeDraws(...drawGroups: Draw[][]): Draw[] {
@@ -107,6 +109,7 @@ export default function App() {
           <View style={{ width }}><MyTicketsContent draws={draws} refreshKey={ticketsRefreshKey} /></View>
           <View style={{ width }}><LuckyMapContent isActive={page === 4} /></View>
           <View style={{ width }}><StatsContent draws={draws} /></View>
+          <View style={{ width }}><SajuContent draws={draws} /></View>
         </ScrollView>
 
         <View style={[s.tabBar, { paddingBottom: Math.max(4, insets.bottom / 2) }]}>
