@@ -18,12 +18,12 @@ const { width } = Dimensions.get('window');
 
 const TABS = [
   { label: '번호추천', icon: 'sparkles' },
+  { label: '로또사주', icon: 'star' },
   { label: '고정추천', icon: 'pin' },
   { label: '합계생성', icon: 'options' },
   { label: '내 번호', icon: 'ticket' },
   { label: '명당지도', icon: 'map' },
-  { label: '통계', icon: 'bar-chart' },
-  { label: '로또사주', icon: 'star' }
+  { label: '통계', icon: 'bar-chart' }
 ];
 
 function mergeDraws(...drawGroups: Draw[][]): Draw[] {
@@ -72,11 +72,11 @@ export default function App() {
     setPage(p);
   };
 
-  // 당첨 알림을 탭하면 '내 번호'(page 3)로 이동. 앱이 알림으로 시작된 경우도 처리.
+  // 당첨 알림을 탭하면 '내 번호'(page 4)로 이동. 앱이 알림으로 시작된 경우도 처리.
   useEffect(() => {
     function routeFromNotification(response: Notifications.NotificationResponse | null) {
       const screen = response?.notification.request.content.data?.screen;
-      const target = screen === 'tickets' ? 3 : screen === 'home' ? 0 : -1;
+      const target = screen === 'tickets' ? 4 : screen === 'home' ? 0 : -1;
       if (target >= 0) {
         scrollRef.current?.scrollTo({ x: target * width, animated: false });
         setPage(target);
@@ -101,15 +101,15 @@ export default function App() {
           scrollEventThrottle={16}
           onMomentumScrollEnd={e => setPage(Math.round(e.nativeEvent.contentOffset.x / width))}
         >
-          <View style={{ width }}><HomeContent draws={draws} onTicketSaved={refreshTickets} onOpenTickets={() => goTo(3)} /></View>
-          <View style={{ width }}><FixedPickContent draws={draws} onTicketSaved={refreshTickets} onOpenTickets={() => goTo(3)} /></View>
+          <View style={{ width }}><HomeContent draws={draws} onTicketSaved={refreshTickets} onOpenTickets={() => goTo(4)} /></View>
+          <View style={{ width }}><SajuContent draws={draws} onTicketSaved={refreshTickets} onOpenTickets={() => goTo(4)} /></View>
+          <View style={{ width }}><FixedPickContent draws={draws} onTicketSaved={refreshTickets} onOpenTickets={() => goTo(4)} /></View>
           <View style={{ width }}>
-            <SumGeneratorContent draws={draws} setParentScrollEnabled={setScrollEnabled} onTicketSaved={refreshTickets} onOpenTickets={() => goTo(3)} />
+            <SumGeneratorContent draws={draws} setParentScrollEnabled={setScrollEnabled} onTicketSaved={refreshTickets} onOpenTickets={() => goTo(4)} />
           </View>
           <View style={{ width }}><MyTicketsContent draws={draws} refreshKey={ticketsRefreshKey} /></View>
-          <View style={{ width }}><LuckyMapContent isActive={page === 4} /></View>
+          <View style={{ width }}><LuckyMapContent isActive={page === 5} /></View>
           <View style={{ width }}><StatsContent draws={draws} /></View>
-          <View style={{ width }}><SajuContent draws={draws} /></View>
         </ScrollView>
 
         <View style={[s.tabBar, { paddingBottom: Math.max(4, insets.bottom / 2) }]}>

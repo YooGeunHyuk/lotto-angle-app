@@ -82,8 +82,9 @@ function hourStem(dayStem: number, hourBr: number): number {
   return ((dayStem % 5) * 2 + hourBr) % 10;
 }
 
-// 생년월일(+선택 출생시) + 오늘 → 오늘의 로또운(사주 레이어). 통계 결합 전 단계.
-export function getDailyFortune(birth: Date, today: Date, birthHour?: number | null): DailyFortune {
+// 생년월일(+선택 출생시·분) + 오늘 → 오늘의 로또운(사주 레이어). 통계 결합 전 단계.
+// 분은 시주(2시간 단위)를 바꾸진 않고 미세 변동에만 반영(개인화).
+export function getDailyFortune(birth: Date, today: Date, birthHour?: number | null, birthMin?: number | null): DailyFortune {
   const birthGz = dayGanji(birth);
   const todayGz = dayGanji(today);
   const myEl = stemElement(birthGz.stem);
@@ -107,7 +108,7 @@ export function getDailyFortune(birth: Date, today: Date, birthHour?: number | n
   }
 
   // 결정적 jitter (-4~+4) — 같은 관계라도 날마다 미묘하게 다르게
-  const seedExtra = hStem != null ? hStem * 3 : 0;
+  const seedExtra = (hStem != null ? hStem * 3 : 0) + (birthMin ?? 0);
   const jitter = ((birthGz.index * 7 + todayGz.index * 13 + seedExtra) % 9) - 4;
   score = Math.max(1, Math.min(99, score + jitter));
 
@@ -145,13 +146,13 @@ export interface SajuNumberSet {
 
 // 사주 가중(행운 끝자리·오행 구간) + 통계(출현빈도) 결합으로 5세트 생성.
 // (birth, today)로 시드 고정 → 같은 날 같은 사람은 항상 같은 5세트.
-export function generateSajuNumbers(birth: Date, today: Date, draws: Draw[], birthHour?: number | null): SajuNumberSet[] {
+export function generateSajuNumbers(birth: Date, today: Date, draws: Draw[], birthHour?: number | null, birthMin?: number | null): SajuNumberSet[] {
   const b = dayGanji(birth);
   const t = dayGanji(today);
-  const fortune = getDailyFortune(birth, today, birthHour);
+  const fortune = getDailyFortune(birth, today, birthHour, birthMin);
   const luckyDigit = fortune.luckyDigit;
   const myEl = ELEMENTS.indexOf(fortune.myElement);
-  const hourSeed = birthHour != null ? (hourStem(b.stem, hourBranch(birthHour)) + 1) * 17 : 0;
+  const hourSeed = (birthHour != null ? (hourStem(b.stem, hourBranch(birthHour)) + 1) * 17 : 0) + (birthMin ?? 0) * 3;
 
   const freq = new Array(46).fill(0);
   draws.forEach(d => d.numbers.forEach(n => { if (n >= 1 && n <= 45) freq[n]++; }));
@@ -186,4 +187,39 @@ export function generateSajuNumbers(birth: Date, today: Date, draws: Draw[], bir
     sets.push({ numbers: [...picked].sort((a, b2) => a - b2), tag: TAGS[si] });
   }
   return sets;
+}
+
+export interface DayFortune {
+  date: Date;
+  label: string; // 월~일
+  isToday: boolean;
+  fortune: DailyFortune;
+}
+
+const WEEKDAY_LABELS = ['월', '화', '수', '목', '금', '토', '일'];
+
+// ref가 속한 주(월~일) 7일의 로또운. 가장 좋은 날 고르기에 사용.
+export function getWeekFortunes(birth: Date, ref: Date, birthHour?: number | null, birthMin?: number | null): DayFortune[] {
+  const monday = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate() - ((ref.getDay() + 6) % 7));
+  const todayKey = ref.toDateString();
+  const out: DayFortune[] = [];
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
+    out.push({
+      date,
+      label: WEEKDAY_LABELS[i],
+      isToday: date.toDateString() === todayKey,
+      fortune: getDailyFortune(birth, date, birthHour, birthMin),
+    });
+  }
+  return out;
+}
+
+// 7일 중 가장 점수 높은 날의 인덱스
+export function bestDayIndex(days: DayFortune[]): number {
+  let best = 0;
+  for (let i = 1; i < days.length; i++) {
+    if (days[i].fortune.score > days[best].fortune.score) best = i;
+  }
+  return best;
 }
