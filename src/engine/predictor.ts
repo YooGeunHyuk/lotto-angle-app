@@ -492,6 +492,12 @@ export function generateFiveSets(draws: Draw[]): GeneratedSets {
   return generateSets(draws, 'safe', 5);
 }
 
+// 외부(로또사주 등)에서 앙상블 번호별 점수만 필요할 때. 결정적(난수 없음).
+export function getEnsembleScores(draws: Draw[]): Record<number, number> {
+  if (draws.length < 20) return {};
+  return computeScores(draws, 'ensemble').scoreMap;
+}
+
 // 고정번호 추천: 사용자가 지정한 번호를 포함해 나머지 자리를 추천 엔진으로 채움.
 export function generateFixedSets(draws: Draw[], fixed: number[], count: number = 5): GeneratedSets {
   if (draws.length < 20) return { sets: [], reasons: [], sumRange: { min: 0, max: 0 } };

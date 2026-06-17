@@ -290,7 +290,7 @@ export default function SajuContent({
                     {selected.fortune.hasTime ? ` · 시주 ${selected.fortune.hourStem}(${selected.fortune.hourElement})` : ''} × {selected.fortune.todayStem}({selected.fortune.todayElement}) = {selected.fortune.relationLabel}
                   </Text>
                   {!selected.fortune.hasTime && <Text style={s.whyHint}>· 태어난 시간을 넣으면 시주까지 반영돼 더 정교해져요</Text>}
-                  <Text style={s.whyLine}><Text style={s.whyTag}>통계 </Text>역대 출현빈도 + 행운수 가중으로 번호 생성</Text>
+                  <Text style={s.whyLine}><Text style={s.whyTag}>통계 </Text>앙상블 추천엔진 점수 + 행운수 가중으로 번호 생성</Text>
                 </View>
               )}
             </View>

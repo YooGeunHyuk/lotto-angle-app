@@ -1,4 +1,5 @@
 import type { Draw } from '../data/lottoData';
+import { getEnsembleScores } from '../engine/predictor';
 
 // 로또사주 엔진 — 결정적(deterministic) 규칙 기반. 외부 데이터/API 없이 로컬 계산.
 // 같은 생년월일 + 같은 날 = 항상 같은 결과 (신뢰의 핵심. 랜덤 금지).
@@ -154,13 +155,21 @@ export function generateSajuNumbers(birth: Date, today: Date, draws: Draw[], bir
   const myEl = ELEMENTS.indexOf(fortune.myElement);
   const hourSeed = (birthHour != null ? (hourStem(b.stem, hourBranch(birthHour)) + 1) * 17 : 0) + (birthMin ?? 0) * 3;
 
+  // 통계 레이어 = 앙상블 추천 점수(결정적). 부족 시 단순 출현빈도로 폴백.
+  const ensemble = getEnsembleScores(draws);
+  const hasEnsemble = Object.keys(ensemble).length > 0;
   const freq = new Array(46).fill(0);
   draws.forEach(d => d.numbers.forEach(n => { if (n >= 1 && n <= 45) freq[n]++; }));
   const maxFreq = Math.max(1, ...freq.slice(1));
+  const maxScore = hasEnsemble ? Math.max(1e-6, ...Object.values(ensemble)) : 1;
+  // 번호별 통계 가중 0~1
+  function statW(n: number): number {
+    return hasEnsemble ? (ensemble[n] || 0) / maxScore : freq[n] / maxFreq;
+  }
 
   function baseWeight(n: number): number {
     let w = 1;
-    w += (freq[n] / maxFreq) * 1.5;            // 통계: 핫넘버
+    w += statW(n) * 1.5;                        // 통계: 앙상블 점수
     if (n % 10 === luckyDigit) w += 1.2;        // 사주: 행운 끝자리
     if (Math.floor((n - 1) / 9) === myEl) w += 0.6; // 사주: 내 오행 숫자대(1~45 5등분)
     return w;
@@ -183,8 +192,8 @@ export function generateSajuNumbers(birth: Date, today: Date, draws: Draw[], bir
           if (n % 10 === luckyDigit) w += 1.4;
           if (Math.floor((n - 1) / 9) === myEl) w += 0.8;
         } else {
-          // 사주×통계: 출현빈도 더 반영
-          w += (freq[n] / maxFreq) * 1.0;
+          // 사주×통계(앙상블): 추천엔진 점수 더 반영
+          w += statW(n) * 1.0;
           if (n % 10 === luckyDigit) w += 0.4;
         }
         const reps = Math.max(1, Math.round(w * 3));
