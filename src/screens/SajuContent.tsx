@@ -50,7 +50,6 @@ export default function SajuContent({
   const [editing, setEditing] = useState(false);
   const [whyOpen, setWhyOpen] = useState(false);
   const [revealing, setRevealing] = useState(false);
-  const [selectedIdx, setSelectedIdx] = useState(0);
 
   // 입력 상태
   const [name, setName] = useState('');
@@ -86,10 +85,8 @@ export default function SajuContent({
   );
   const bestIdx = useMemo(() => (weekDays.length ? bestDayIndex(weekDays) : 0), [weekDays]);
 
-  // 프로필 바뀌면 베스트 날을 기본 선택
-  useEffect(() => { if (weekDays.length) setSelectedIdx(bestIdx); }, [bestIdx, weekDays.length]);
-
-  const selected = weekDays[selectedIdx];
+  // 로또 추첨은 토요일 1회 → 번호는 베스트 날 기운으로 이번 주 1세트 그룹(요일 무관).
+  const selected = weekDays[bestIdx];
   const sets = useMemo(
     () => (birthDate && selected ? generateSajuNumbers(birthDate, selected.date, draws, profile?.hour, profile?.minute) : []),
     [birthDate, selected, draws, profile],
@@ -249,17 +246,16 @@ export default function SajuContent({
           <>
             {/* 주간 점수 스트립 */}
             <View style={s.weekCard}>
-              <Text style={s.weekTitle}>이번 주 로또운</Text>
+              <Text style={s.weekTitle}>이번 주 요일별 운 · 사기 좋은 날 👑</Text>
               <View style={s.weekRow}>
                 {weekDays.map((day, i) => {
                   const isBest = i === bestIdx;
-                  const isSel = i === selectedIdx;
                   return (
-                    <TouchableOpacity key={i} style={[s.dayCell, isSel && s.dayCellSel]} onPress={() => setSelectedIdx(i)} activeOpacity={0.7}>
+                    <View key={i} style={[s.dayCell, isBest && s.dayCellBest]}>
                       <Text style={[s.dayLabel, day.isToday && s.dayToday]}>{day.label}</Text>
                       <Text style={[s.dayScore, { color: gradeColor(day.fortune.grade) }]}>{day.fortune.score}</Text>
                       <Text style={s.dayCrown}>{isBest ? '👑' : ' '}</Text>
-                    </TouchableOpacity>
+                    </View>
                   );
                 })}
               </View>
@@ -268,8 +264,7 @@ export default function SajuContent({
             {/* 선택한 날 히어로 */}
             <View style={s.heroCard}>
               <Text style={s.heroLabel}>
-                {selectedIdx === bestIdx ? '👑 이번 주 가장 좋은 날' : `${selected.label}요일`}
-                {profile?.name ? ` · ${profile.name}님` : ''}
+                👑 이번 주 사기 좋은 날 · {selected.label}요일{profile?.name ? ` · ${profile.name}님` : ''}
               </Text>
               <Text style={[s.heroScore, { color: gradeColor(selected.fortune.grade) }]}>{selected.fortune.score}</Text>
               <View style={[s.gradeBadge, { backgroundColor: gradeColor(selected.fortune.grade) }]}>
@@ -298,8 +293,9 @@ export default function SajuContent({
             {/* 맞춤 번호 — 추천 레이아웃 + 별표 */}
             <View style={s.card}>
               <View style={s.cardHead}>
-                <Text style={s.cardTitle}>{selected.label}요일 맞춤 번호 · {sets.length}세트</Text>
+                <Text style={s.cardTitle}>이번 주 추천 번호 · {sets.length}세트</Text>
               </View>
+              <Text style={s.weekNote}>로또 추첨은 토요일 1회예요. 이 번호로 사기 좋은 날({selected.label})에 사보세요.</Text>
               <Text style={s.pickHint}>☆를 눌러 마음에 드는 세트를 모으세요. {pending.length}/{PENDING_GAMES_LIMIT}개 모이면 내 번호로 자동 저장돼요.</Text>
               {sets.map((set, i) => {
                 const sel = isSelected(set.numbers);
@@ -377,7 +373,7 @@ const s = StyleSheet.create({
   weekTitle: { fontSize: 12, fontWeight: '800', color: C.black, marginBottom: 10, marginLeft: 2 },
   weekRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 4 },
   dayCell: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: 'transparent', backgroundColor: '#FFFFFF' },
-  dayCellSel: { borderColor: C.accent, backgroundColor: '#FFF3EE' },
+  dayCellBest: { borderColor: C.accent, backgroundColor: '#FFF3EE' },
   dayLabel: { fontSize: 11, fontWeight: '700', color: C.gray },
   dayToday: { color: C.accent },
   dayScore: { fontSize: 16, fontWeight: '900', marginTop: 3 },
@@ -395,6 +391,7 @@ const s = StyleSheet.create({
   whyLine: { fontSize: 12, color: C.black, lineHeight: 18 },
   whyTag: { fontWeight: '800', color: C.accent },
   whyHint: { fontSize: 11, color: C.gray, lineHeight: 16, marginTop: -2 },
+  weekNote: { fontSize: 11.5, color: C.black, fontWeight: '600', lineHeight: 16, marginBottom: 8 },
   pickHint: { fontSize: 11, color: C.gray, lineHeight: 16, marginBottom: 4 },
   setRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderTopWidth: 1, borderTopColor: C.border, gap: 6 },
   setLabelCol: { width: 56, alignItems: 'flex-start' },
