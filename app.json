@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.meetyuuu.lottoanalyzer",
-      "buildNumber": "45",
+      "buildNumber": "46",
       "infoPlist": {
         "UIViewControllerBasedStatusBarAppearance": false,
         "ITSAppUsesNonExemptEncryption": false,
@@ -68,7 +68,7 @@
         "react-native-google-mobile-ads",
         {
           "androidAppId": "ca-app-pub-9317493495237163~8537692494",
-          "iosAppId": "ca-app-pub-5697680589501542~7803483333"
+          "iosAppId": "ca-app-pub-9317493495237163~8857773612"
         }
       ],
       [
