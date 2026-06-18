@@ -44,7 +44,7 @@ const s = StyleSheet.create({
   container: { marginTop: 24, paddingHorizontal: 16, alignItems: 'center' },
   slot: {
     width: '100%',
-    minHeight: 120,
+    minHeight: 56,
     backgroundColor: C.card,
     borderRadius: 12,
     borderWidth: 1,
@@ -52,5 +52,6 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
+    paddingVertical: 6,
   },
 });
