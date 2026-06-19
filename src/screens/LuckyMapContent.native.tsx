@@ -719,8 +719,7 @@ export default function LuckyMapContent({ isActive = true }: { isActive?: boolea
           ))}
         </View>
         <TouchableOpacity style={[s.mapToggleBtn, showMap && s.mapToggleBtnActive]} onPress={toggleMap} activeOpacity={0.78}>
-          <Ionicons name={showMap ? 'list-outline' : 'map-outline'} size={14} color={showMap ? '#FFFFFF' : C.black} />
-          <Text style={[s.mapToggleText, showMap && s.mapToggleTextActive]}>{showMap ? '리스트' : '지도'}</Text>
+          <Text style={[s.mapToggleText, showMap && s.mapToggleTextActive]} numberOfLines={1}>{showMap ? '리스트' : '지도'}</Text>
         </TouchableOpacity>
       </View>
 
@@ -844,7 +843,7 @@ const s = StyleSheet.create({
   subTabTextActive: { color: '#FFFFFF' },
   mapToggleBtn: { width: 64, height: 32, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderWidth: 1, borderColor: C.border, backgroundColor: '#FFFFFF', borderRadius: 999, paddingHorizontal: 0 },
   mapToggleBtnActive: { backgroundColor: C.black, borderColor: C.black },
-  mapToggleText: { width: 28, fontSize: 10.5, lineHeight: 14, fontWeight: '800', color: C.black, textAlign: 'center' },
+  mapToggleText: { fontSize: 10.5, lineHeight: 14, fontWeight: '800', color: C.black, textAlign: 'center' },
   mapToggleTextActive: { color: '#FFFFFF' },
   mapCard: { height: 300, marginHorizontal: 16, marginTop: 12, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: C.border, backgroundColor: C.card },
   map: { flex: 1 },
