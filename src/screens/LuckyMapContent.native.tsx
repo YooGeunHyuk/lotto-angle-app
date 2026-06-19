@@ -719,6 +719,7 @@ export default function LuckyMapContent({ isActive = true }: { isActive?: boolea
           ))}
         </View>
         <TouchableOpacity style={[s.mapToggleBtn, showMap && s.mapToggleBtnActive]} onPress={toggleMap} activeOpacity={0.78}>
+          <Ionicons name={showMap ? 'list-outline' : 'map-outline'} size={14} color={showMap ? '#FFFFFF' : C.black} />
           <Text style={[s.mapToggleText, showMap && s.mapToggleTextActive]} numberOfLines={1}>{showMap ? '리스트' : '지도'}</Text>
         </TouchableOpacity>
       </View>
