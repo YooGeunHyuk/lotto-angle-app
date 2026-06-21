@@ -1,5 +1,6 @@
-// 네이버 검색에서 최신 로또 회차를 가져와 Gist를 자동 업데이트.
-// dhlottery 공식 API는 차단이 잦아서 네이버 검색 결과 파싱을 사용.
+// 최신 로또 회차를 가져와 Gist를 자동 업데이트.
+// CI(GitHub Actions 데이터센터 IP)에선 네이버가 403으로 막혀서 dhlottery 공식 API를 1순위로,
+// 네이버 검색 파싱을 fallback으로 쓴다. (반대로 앱/로컬 주거용 IP에선 네이버가 잘 됨)
 //
 // 환경변수:
 //   GIST_TOKEN  — GitHub PAT (gist scope)
@@ -38,6 +39,44 @@ function parseLottoFromHtml(html) {
     numbers: balls.slice(0, 6),
     bonus: balls[6],
   };
+}
+
+const DH_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Referer': 'https://www.dhlottery.co.kr/gameResult.do?method=byWin',
+  'Accept': 'application/json, text/javascript, */*; q=0.01',
+};
+
+// dhlottery 공식 API. GitHub Actions(데이터센터 IP)에선 동작하지만 네이버는 거기서 403 → CI에선 이걸 1순위로.
+async function fetchDhlottery(drw) {
+  try {
+    const res = await fetch(`https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo=${drw}`, { headers: DH_HEADERS });
+    const text = await res.text();
+    if (text.trim().startsWith('<')) return null;
+    const data = JSON.parse(text);
+    if (data.returnValue !== 'success') return null;
+    return {
+      drwNo: Number(data.drwNo),
+      drwNoDate: String(data.drwNoDate),
+      numbers: [data.drwtNo1, data.drwtNo2, data.drwtNo3, data.drwtNo4, data.drwtNo5, data.drwtNo6].map(Number),
+      bonus: Number(data.bnusNo),
+    };
+  } catch {
+    return null;
+  }
+}
+
+// 특정 회차를 dhlottery → 네이버 순으로 시도. 둘 다 실패/미발표면 null.
+async function fetchDrawAny(drw) {
+  const dh = await fetchDhlottery(drw);
+  if (dh && isValidDraw(dh)) return dh;
+  try {
+    const d = parseLottoFromHtml(await fetchNaver(`로또 ${drw}회`));
+    if (d && isValidDraw(d) && d.drwNo === drw) return d;
+  } catch {
+    // 네이버 차단(403 등) — CI 데이터센터 IP에선 흔함. 무시하고 null.
+  }
+  return null;
 }
 
 function isValidDraw(draw) {
@@ -97,47 +136,33 @@ async function main() {
   const lastDrw = existing.reduce((max, d) => Math.max(max, Number(d.drwNo) || 0), 0);
   console.log(`   Gist 최신 회차: ${lastDrw}`);
 
-  console.log('2) 네이버에서 최신 회차 조회...');
-  const html = await fetchNaver('로또 당첨번호');
-  const latest = parseLottoFromHtml(html);
-  if (!latest || !isValidDraw(latest)) {
-    console.log('   네이버에서 유효한 데이터 못 가져옴. 종료.');
-    process.exit(0);
+  console.log('2) 다음 회차부터 조회 (dhlottery 우선, 네이버 fallback)...');
+  const newDraws = [];
+  const MAX_LOOKAHEAD = 10;
+  for (let drw = lastDrw + 1; drw <= lastDrw + MAX_LOOKAHEAD; drw++) {
+    const d = await fetchDrawAny(drw);
+    if (!d) {
+      console.log(`   ${drw}회 없음(미발표/소스차단) — 중단`);
+      break;
+    }
+    newDraws.push(d);
+    console.log(`   ${drw}회: ${d.numbers.join(', ')} + ${d.bonus}`);
+    await new Promise(r => setTimeout(r, 400));
   }
-  console.log(`   네이버 최신: ${latest.drwNo}회 (${latest.drwNoDate})`);
 
-  if (latest.drwNo <= lastDrw) {
+  if (newDraws.length === 0) {
     console.log('업데이트 불필요 — Gist가 이미 최신.');
     return;
   }
 
-  console.log(`3) ${lastDrw + 1}회 ~ ${latest.drwNo}회 사이 회차 채우기...`);
-  const newDraws = [];
-  for (let drw = lastDrw + 1; drw <= latest.drwNo; drw++) {
-    if (drw === latest.drwNo) {
-      newDraws.push(latest);
-      console.log(`   ${drw}회 (네이버 직접): ${latest.numbers.join(', ')} + ${latest.bonus}`);
-      continue;
-    }
-    const h = await fetchNaver(`로또 ${drw}회`);
-    const d = parseLottoFromHtml(h);
-    if (d && isValidDraw(d) && d.drwNo === drw) {
-      newDraws.push(d);
-      console.log(`   ${drw}회 (네이버 검색): ${d.numbers.join(', ')} + ${d.bonus}`);
-    } else {
-      console.log(`   ${drw}회 못 가져옴 — 스킵`);
-    }
-    await new Promise(r => setTimeout(r, 500));
-  }
-
-  if (newDraws.length === 0) {
-    console.log('새 회차 없음. 종료.');
-    return;
-  }
-
   const merged = [...existing, ...newDraws].sort((a, b) => a.drwNo - b.drwNo);
-  console.log(`4) Gist 업데이트 — 총 ${merged.length}회차 (${newDraws.length}개 추가)`);
+  console.log(`3) Gist 업데이트 — 총 ${merged.length}회차 (${newDraws.length}개 추가)`);
   await updateGist(merged);
+  // 새 회차가 실제로 추가된 이 실행에서만 신호 → CI가 푸시 1회만 발송(중복 방지).
+  if (process.env.GITHUB_OUTPUT) {
+    const latestAdded = newDraws[newDraws.length - 1].drwNo;
+    require('fs').appendFileSync(process.env.GITHUB_OUTPUT, `added=true\nlatest=${latestAdded}\n`);
+  }
   console.log('완료!');
 }
 
