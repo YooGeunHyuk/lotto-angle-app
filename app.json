@@ -2,7 +2,7 @@
   "expo": {
     "name": "로또될각",
     "slug": "LottoAnalyzer",
-    "version": "1.2.1",
+    "version": "1.2.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "lottoanalyzer",
@@ -22,7 +22,7 @@
     },
     "android": {
       "package": "com.meetyuuu.lottoanalyzer",
-      "versionCode": 15,
+      "versionCode": 16,
       "adaptiveIcon": {
         "backgroundColor": "#F6DF8F",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -78,7 +78,8 @@
         }
       ],
       "expo-background-fetch",
-      "expo-task-manager"
+      "expo-task-manager",
+      "./plugins/withFontScaleLock"
     ],
     "experiments": {
       "typedRoutes": true,

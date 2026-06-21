@@ -4,9 +4,15 @@ import rawData from '../../data/lotto_history.json';
 const REMOTE_LOTTO_URLS = [
   'https://gist.githubusercontent.com/YooGeunHyuk/c43d9902c513e986c4a9ee2bd78eee33/raw/lotto.json',
 ];
-const OFFICIAL_LOTTO_URL = 'https://www.dhlottery.co.kr/common.do?method=getLottoNumber';
 const REMOTE_DRAWS_CACHE_KEY = 'remote_lotto_draws_cache';
-const MAX_OFFICIAL_LOOKAHEAD = 20;
+
+// dhlottery 공식 API는 세션/IP 차단이 심해(getLottoNumber 호출 시 홈으로 302) 앱에서 직접 못 씀.
+// 대신 네이버 검색 결과를 파싱해 최신 회차를 가져온다. (CI의 updateGistFromNaver.js와 동일 방식)
+const NAVER_SEARCH_URL = 'https://search.naver.com/search.naver?query=';
+const NAVER_UA =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15';
+// gist가 비었을 때 네이버로 메꿀 수 있는 최대 회차 수(폭주 방지).
+const MAX_NAVER_GAP_FILL = 10;
 
 export interface Draw {
   drwNo: number;
@@ -42,17 +48,16 @@ function normalizeDraw(raw: unknown): Draw | null {
   };
 }
 
-function normalizeOfficialDraw(raw: unknown): Draw | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const item = raw as Record<string, unknown>;
-  if (item.returnValue !== 'success') return null;
-
-  const numbers = [1, 2, 3, 4, 5, 6].map(index => Number(item[`drwtNo${index}`]));
+function parseNaverDraw(html: string): Draw | null {
+  const mRound = html.match(/(\d{3,4})회차\s*\((\d{4})\.(\d{2})\.(\d{2})\.\)/);
+  if (!mRound) return null;
+  const balls = [...html.matchAll(/<span class="ball type\d+">(\d+)<\/span>/g)].map(m => Number(m[1]));
+  if (balls.length < 7) return null;
   return normalizeDraw({
-    drwNo: item.drwNo,
-    drwNoDate: item.drwNoDate,
-    numbers,
-    bonus: item.bnusNo,
+    drwNo: Number(mRound[1]),
+    drwNoDate: `${mRound[2]}-${mRound[3]}-${mRound[4]}`,
+    numbers: balls.slice(0, 6),
+    bonus: balls[6],
   });
 }
 
@@ -73,62 +78,67 @@ function parseRemoteDrawsPayload(payload: string): unknown {
   }
 }
 
-async function fetchOfficialDraw(drawNo: number): Promise<Draw | null> {
+// round 지정 시 그 회차를, 미지정 시 최신 회차를 네이버에서 가져온다.
+async function fetchNaverDraw(round?: number): Promise<Draw | null> {
   try {
-    const response = await fetch(`${OFFICIAL_LOTTO_URL}&drwNo=${drawNo}`, {
-      headers: {
-        Accept: 'application/json, text/javascript, */*; q=0.01',
-        Referer: 'https://www.dhlottery.co.kr/gameResult.do?method=byWin',
-        'User-Agent': 'Mozilla/5.0',
-        'X-Requested-With': 'XMLHttpRequest',
-      },
+    const query = round ? `로또 ${round}회 당첨번호` : '로또 당첨번호';
+    const response = await fetch(`${NAVER_SEARCH_URL}${encodeURIComponent(query)}`, {
+      headers: { 'User-Agent': NAVER_UA },
     });
     if (!response.ok) return null;
 
-    const text = await response.text();
-    return normalizeOfficialDraw(JSON.parse(text));
+    const draw = parseNaverDraw(await response.text());
+    // 특정 회차를 요청했는데 파싱된 회차가 다르면(아직 미발표 등) 무효 처리.
+    if (draw && round && draw.drwNo !== round) return null;
+    return draw;
   } catch {
     return null;
   }
 }
 
-async function getOfficialUpdates(): Promise<Draw[]> {
-  const updates: Draw[] = [];
-  const latestLocalDrawNo = allDraws[allDraws.length - 1]?.drwNo ?? 0;
-
-  for (let drawNo = latestLocalDrawNo + 1; drawNo <= latestLocalDrawNo + MAX_OFFICIAL_LOOKAHEAD; drawNo += 1) {
-    const draw = await fetchOfficialDraw(drawNo);
-    if (!draw) break;
-    updates.push(draw);
-  }
-
-  return updates;
-}
-
-export async function getRemoteDraws(): Promise<Draw[]> {
-  try {
-    const officialUpdates = await getOfficialUpdates();
-    if (officialUpdates.length > 0) {
-      await AsyncStorage.setItem(REMOTE_DRAWS_CACHE_KEY, JSON.stringify(officialUpdates));
-      return officialUpdates;
-    }
-
-    const remoteCandidates: Draw[][] = [];
-    for (const url of REMOTE_LOTTO_URLS) {
+async function fetchGistDraws(): Promise<Draw[]> {
+  for (const url of REMOTE_LOTTO_URLS) {
+    try {
       const response = await fetch(`${url}?t=${Date.now()}`);
       if (!response.ok) continue;
 
       const draws = normalizeDraws(parseRemoteDrawsPayload(await response.text()));
-      if (draws.length > 0) {
-        remoteCandidates.push(draws);
+      if (draws.length > 0) return draws;
+    } catch {
+      // 다음 URL 시도
+    }
+  }
+  return [];
+}
+
+export async function getRemoteDraws(): Promise<Draw[]> {
+  try {
+    // 1) gist에서 전체 회차 이력 확보 (CI가 주기적으로 갱신).
+    const gistDraws = await fetchGistDraws();
+
+    // 2) 기준 최신 회차 = gist 최신 vs 내장 데이터 최신 중 큰 값.
+    const bundledLatest = allDraws[allDraws.length - 1]?.drwNo ?? 0;
+    const gistLatest = gistDraws[gistDraws.length - 1]?.drwNo ?? 0;
+    const baseLatest = Math.max(bundledLatest, gistLatest);
+
+    // 3) 네이버로 "방금 발표된" 최신 회차를 직접 확인 → CI/gist가 늦어도 앱이 스스로 최신화.
+    const merged = [...gistDraws];
+    const naverLatest = await fetchNaverDraw();
+    if (naverLatest && naverLatest.drwNo > baseLatest) {
+      for (let n = baseLatest + 1; n <= naverLatest.drwNo && n <= baseLatest + MAX_NAVER_GAP_FILL; n += 1) {
+        const draw = n === naverLatest.drwNo ? naverLatest : await fetchNaverDraw(n);
+        if (draw) merged.push(draw);
       }
     }
 
-    const newestRemoteDraws = remoteCandidates
-      .sort((a, b) => (b[b.length - 1]?.drwNo ?? 0) - (a[a.length - 1]?.drwNo ?? 0))[0];
-    if (newestRemoteDraws) {
-      await AsyncStorage.setItem(REMOTE_DRAWS_CACHE_KEY, JSON.stringify(newestRemoteDraws));
-      return newestRemoteDraws;
+    // 4) 회차 기준 중복 제거 + 정렬.
+    const byDrawNo = new Map<number, Draw>();
+    for (const draw of merged) byDrawNo.set(draw.drwNo, draw);
+    const result = Array.from(byDrawNo.values()).sort((a, b) => a.drwNo - b.drwNo);
+
+    if (result.length > 0) {
+      await AsyncStorage.setItem(REMOTE_DRAWS_CACHE_KEY, JSON.stringify(result));
+      return result;
     }
 
     throw new Error('Remote lotto data was not available');

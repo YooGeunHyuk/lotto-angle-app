@@ -1,4 +1,5 @@
 import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import Constants from 'expo-constants';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -26,6 +27,18 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
+    // Google Mobile Ads SDK는 광고 로드 전 앱 시작 시 1회 초기화해야 함 (v16+ 필수).
+    // Expo Go에는 네이티브 모듈이 없으므로 런타임 require로 가드.
+    if (Constants.appOwnership !== 'expo') {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const mobileAds = require('react-native-google-mobile-ads').default;
+        mobileAds().initialize().catch(() => {});
+      } catch {
+        // 네이티브 모듈 없음(Expo Go 등) — 무시.
+      }
+    }
+
     (async () => {
       await ensureNotificationPermission();
       await registerBackgroundDrawCheck();

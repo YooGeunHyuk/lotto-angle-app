@@ -112,7 +112,7 @@ export default function App() {
           <View style={{ width }}><StatsContent draws={draws} /></View>
         </ScrollView>
 
-        <View style={[s.tabBar, { paddingBottom: Math.max(4, insets.bottom / 2) }]}>
+        <View style={[s.tabBar, { paddingBottom: Math.max(13, insets.bottom + 8) }]}>
           {TABS.map((tab, i) => (
             <TouchableOpacity key={tab.label} style={s.tab} onPress={() => goTo(i)}>
               <Ionicons name={tab.icon as any} size={19} color={page === i ? '#1A1A1A' : '#BBBBBB'} />
