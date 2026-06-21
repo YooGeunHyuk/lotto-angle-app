@@ -232,15 +232,17 @@ export interface DayFortune {
   fortune: DailyFortune;
 }
 
-const WEEKDAY_LABELS = ['월', '화', '수', '목', '금', '토', '일'];
+// 로또는 토요일 추첨 → 한 주는 일요일(구매 시작)~토요일(추첨)로 본다.
+const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 
 // ref가 속한 주(월~일) 7일의 로또운. 가장 좋은 날 고르기에 사용.
 export function getWeekFortunes(birth: Date, ref: Date, birthHour?: number | null, birthMin?: number | null): DayFortune[] {
-  const monday = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate() - ((ref.getDay() + 6) % 7));
+  // 주 시작 = 이번 주 일요일 (getDay(): 일=0 → 그만큼 빼면 일요일).
+  const weekStart = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate() - ref.getDay());
   const todayKey = ref.toDateString();
   const out: DayFortune[] = [];
   for (let i = 0; i < 7; i++) {
-    const date = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
+    const date = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + i);
     out.push({
       date,
       label: WEEKDAY_LABELS[i],
