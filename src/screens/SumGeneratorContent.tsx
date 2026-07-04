@@ -6,6 +6,7 @@ import AdBanner from '../components/AdBanner';
 import HeaderInfo from '../components/HeaderInfo';
 import ScreenHeader from '../components/ScreenHeader';
 import { Draw } from '../data/lottoData';
+import { generateSplitAvoidSets, overlapLabel } from '../engine/splitAvoidance';
 import { saveRecommendedTicket } from '../data/recommendedTicket';
 import { PENDING_GAMES_LIMIT } from '../data/ticketStore';
 import { usePendingPicks } from '../hooks/usePendingPicks';
@@ -22,6 +23,12 @@ const C = {
   logo: '#D94F2A' 
 };
 
+function riskStyle(overlap: string) {
+  if (overlap.includes('낮음')) return { color: '#2E9E5B' };
+  if (overlap.includes('보통')) return { color: '#C98A1E' };
+  return { color: '#D94F2A' };
+}
+
 interface Props {
   draws: Draw[];
   setParentScrollEnabled: (enabled: boolean) => void;
@@ -33,12 +40,16 @@ interface GeneratedSet {
   setNo: number;
   numbers: number[];
   sum: number;
+  overlap?: string; // 분할회피 모드에서만: '겹침 위험 낮음' 등
 }
+
+type GenMode = 'sum' | 'split';
 
 export default function SumGeneratorContent({ draws, setParentScrollEnabled, onTicketSaved, onOpenTickets }: Props) {
   const latest = draws[draws.length - 1];
   const nextDrwNo = latest ? latest.drwNo + 1 : 1;
   const [values, setValues] = useState([121, 180]);
+  const [mode, setMode] = useState<GenMode>('sum');
   const [result, setResult] = useState<GeneratedSet[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -63,16 +74,35 @@ export default function SumGeneratorContent({ draws, setParentScrollEnabled, onT
     }
   }, [nextDrwNo, onOpenTickets, onTicketSaved, toggleSelect]);
 
-  const analysisReasons = [
-    '사용자가 지정한 합계 범위 내에서 우선 필터링',
-    '역대 당첨 번호의 합계 분포 흐름 참고',
-    '번호대(1-9·10-19·20-29·30-39·40-45) 균형 고려',
-    '최근 출현 흐름과 누적 빈도 함께 반영',
-  ];
+  const analysisReasons = mode === 'sum'
+    ? [
+        '사용자가 지정한 합계 범위 내에서 우선 필터링',
+        '역대 당첨 번호의 합계 분포 흐름 참고',
+        '번호대(1-9·10-19·20-29·30-39·40-45) 균형 고려',
+        '최근 출현 흐름과 누적 빈도 함께 반영',
+      ]
+    : [
+        '생일 편중(1~31) 회피 · 고번호(32~45) 포함으로 균형',
+        '3연속 이상 줄긋기 조합 제외',
+        '5-10-15 같은 등차수열 패턴 제외',
+        '5의 배수·행운번호(7) 과다 조합 감점',
+        '지정한 합계 범위는 추가 제약으로 함께 적용',
+      ];
 
-  const generateBySum = () => {
+  const generate = () => {
     setBusy(true);
     setTimeout(() => {
+      if (mode === 'split') {
+        const sets = generateSplitAvoidSets(5, values[0], values[1]);
+        setResult(sets.map(sset => ({
+          setNo: sset.setNo,
+          numbers: sset.numbers,
+          sum: sset.sum,
+          overlap: overlapLabel(sset.popularity),
+        })));
+        setBusy(false);
+        return;
+      }
       const newSets: GeneratedSet[] = [];
       for (let i = 1; i <= 5; i++) {
         let attempts = 0;
@@ -128,7 +158,29 @@ export default function SumGeneratorContent({ draws, setParentScrollEnabled, onT
         style={{ flex: 1 }}
         contentContainerStyle={s.content}
       >
-        <ScreenHeader title="합계생성 추천" subtitle="원하는 합계 범위 설정 · 번호 자동 추천" right={<HeaderInfo />} />
+        <ScreenHeader title="합계생성 추천" subtitle="합계 범위 · 분할 회피 방식으로 자동 추천" right={<HeaderInfo />} />
+
+        {/* 생성 방식 토글 */}
+        <View style={s.card}>
+          <Text style={s.label}>생성 방식</Text>
+          <View style={s.segment}>
+            {([['sum', '합계 범위'], ['split', '분할 회피']] as [GenMode, string][]).map(([m, lbl]) => (
+              <TouchableOpacity
+                key={m}
+                style={[s.segItem, mode === m && s.segItemActive]}
+                onPress={() => { setMode(m); setResult(null); }}
+                activeOpacity={0.7}
+              >
+                <Text style={[s.segText, mode === m && s.segTextActive]}>{lbl}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {mode === 'split' && (
+            <Text style={s.splitNote}>
+              당첨 확률은 어떤 조합이든 똑같습니다. 분할 회피는 사람들이 많이 찍는 패턴(생일·연속수·등차수열)을 피해, 혹시 당첨되면 나눠 가질 인원을 줄이는 방식입니다.
+            </Text>
+          )}
+        </View>
 
         {/* 범위 설정 카드 */}
         <View style={s.card}>
@@ -158,7 +210,7 @@ export default function SumGeneratorContent({ draws, setParentScrollEnabled, onT
               ))}
             </View>
           </View>
-          <TouchableOpacity style={[s.btn, s.btnPrimary, { marginTop: 24 }, busy && { opacity: 0.4 }]} onPress={generateBySum} disabled={busy}>
+          <TouchableOpacity style={[s.btn, s.btnPrimary, { marginTop: 24 }, busy && { opacity: 0.4 }]} onPress={generate} disabled={busy}>
             <Text style={s.btnPrimaryText}>{busy ? '생성 중' : result ? '다시 추천' : '번호 추천'}</Text>
           </TouchableOpacity>
         </View>
@@ -169,7 +221,7 @@ export default function SumGeneratorContent({ draws, setParentScrollEnabled, onT
             <View style={s.cardHead}>
               <View>
                 <Text style={s.cardTitle}>{nextDrwNo}회차 추천 · 5세트</Text>
-                <Text style={s.dim}>합계 {values[0]}–{values[1]}</Text>
+                <Text style={s.dim}>{mode === 'split' ? '분할 회피' : '합계'} {values[0]}–{values[1]}</Text>
               </View>
               <TouchableOpacity style={[s.savePickButton, saving && { opacity: 0.45 }]} onPress={saveRecommendation} disabled={saving} activeOpacity={0.75}>
                 <Ionicons name="ticket-outline" size={14} color="#FFFFFF" />
@@ -192,7 +244,9 @@ export default function SumGeneratorContent({ draws, setParentScrollEnabled, onT
                   <View style={s.ballsRow}>
                     {set.numbers.map((n, i) => <Ball key={i} num={n} size={34} />)}
                   </View>
-                  <Text style={s.sumText}>{set.sum}</Text>
+                  {set.overlap
+                    ? <Text style={[s.riskText, riskStyle(set.overlap)]}>{set.overlap.replace('겹침 위험 ', '')}</Text>
+                    : <Text style={s.sumText}>{set.sum}</Text>}
                   <Ionicons
                     name={selected ? 'star' : 'star-outline'}
                     size={18}
@@ -265,7 +319,15 @@ const s = StyleSheet.create({
   setNoText: { fontSize: 11, fontWeight: '700', color: C.dim, width: 14 },
   ballsRow: { flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   sumText: { fontSize: 11, color: C.gray, width: 28, textAlign: 'right' },
+  riskText: { fontSize: 10, fontWeight: '700', width: 32, textAlign: 'right' },
   dim: { fontSize: 10, color: C.gray },
+
+  segment: { flexDirection: 'row', backgroundColor: C.border, borderRadius: 10, padding: 3, gap: 3 },
+  segItem: { flex: 1, paddingVertical: 9, borderRadius: 8, alignItems: 'center' },
+  segItemActive: { backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 2, elevation: 2 },
+  segText: { fontSize: 12, fontWeight: '700', color: C.gray },
+  segTextActive: { color: C.black },
+  splitNote: { fontSize: 11, color: C.gray, lineHeight: 17, marginTop: 10 },
 
   accordionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   accordionContent: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.border },
