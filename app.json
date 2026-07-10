@@ -96,7 +96,9 @@
       "policy": "appVersion"
     },
     "updates": {
-      "enabled": false
+      "enabled": true,
+      "url": "https://u.expo.dev/e029e2f2-4393-4645-b48f-eb5d0ecd5da5",
+      "fallbackToCacheTimeout": 0
     }
   }
 }
