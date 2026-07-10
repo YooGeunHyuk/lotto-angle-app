@@ -1,16 +1,26 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, Dimensions, PanResponder, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AdBanner from '../components/AdBanner';
 import ScreenHeader from '../components/ScreenHeader';
 import { Draw } from '../data/lottoData';
 import { PENDING_GAMES_LIMIT } from '../data/ticketStore';
 import { usePendingPicks } from '../hooks/usePendingPicks';
-import { bestDayIndex, generateSajuNumbers, getWeekFortunes } from '../services/saju';
+import { bestDayIndex, DayFortune, generateSajuNumbers, getWeekFortunes } from '../services/saju';
 import { Ball } from './HomeContent';
 
 const PROFILE_KEY = 'saju_profile_v1';
+
+// 한 주 스트립이 보이는 폭(= 캐러셀 한 페이지 폭). 카드 마진(16*2)+패딩(12*2)+보더(1*2) 제외.
+const STRIP_W = Dimensions.get('window').width - 32 - 24 - 2;
+const STRIP_GAP = 4;
+// 한 번에 미리 까는 주 범위(중앙 기준 ±). 모든 페이지를 한 줄에 깔고 translateX만 이동 →
+// 페이지 재정렬(snap-reset)이 없어 스와이프 시 깜빡임이 안 생긴다. (±26주 ≈ 반년)
+const RANGE = 26;
+const PAGE_COUNT = RANGE * 2 + 1;
+// 요일 블럭 고정 너비 — flex 반올림으로 칸마다 1px씩 흔들리는 것 방지. 스트립폭에서 gap(4*6) 빼고 7등분.
+const DAY_CELL_W = Math.floor((STRIP_W - STRIP_GAP * 6) / 7);
 
 type Gender = '남' | '여';
 interface SajuProfile {
@@ -37,10 +47,12 @@ export default function SajuContent({
   draws,
   onTicketSaved,
   onOpenTickets,
+  setParentScrollEnabled,
 }: {
   draws: Draw[];
   onTicketSaved?: () => void;
   onOpenTickets?: () => void;
+  setParentScrollEnabled?: (v: boolean) => void;
 }) {
   const latest = draws[draws.length - 1];
   const nextDrwNo = latest ? latest.drwNo + 1 : 1;
@@ -50,6 +62,7 @@ export default function SajuContent({
   const [editing, setEditing] = useState(false);
   const [whyOpen, setWhyOpen] = useState(false);
   const [revealing, setRevealing] = useState(false);
+  const [weekOffset, setWeekOffset] = useState(0); // 0=이번 주, -1=지난 주, +1=다음 주 …
 
   // 입력 상태
   const [name, setName] = useState('');
@@ -79,11 +92,84 @@ export default function SajuContent({
     () => (profile ? new Date(profile.year, profile.month - 1, profile.day) : null),
     [profile],
   );
-  const weekDays = useMemo(
-    () => (birthDate ? getWeekFortunes(birthDate, today, profile?.hour, profile?.minute) : []),
-    [birthDate, today, profile],
-  );
-  const bestIdx = useMemo(() => (weekDays.length ? bestDayIndex(weekDays) : 0), [weekDays]);
+
+  // 모든 주(-RANGE..RANGE)를 한 번에 계산해 한 줄에 깐다. 각 페이지의 주는 절대 offset으로 고정 →
+  // 중앙(weekOffset)이 바뀌어도 스트립 셀은 재렌더 안 됨(deps에 weekOffset 없음) → 깜빡임 원천 차단.
+  const weeksAll = useMemo(() => {
+    if (!birthDate) return [] as { offset: number; days: DayFortune[]; bestIdx: number }[];
+    const arr: { offset: number; days: DayFortune[]; bestIdx: number }[] = [];
+    for (let k = -RANGE; k <= RANGE; k++) {
+      const ref = new Date(today.getFullYear(), today.getMonth(), today.getDate() + k * 7);
+      const days = getWeekFortunes(birthDate, ref, profile?.hour, profile?.minute);
+      arr.push({ offset: k, days, bestIdx: bestDayIndex(days) });
+    }
+    return arr;
+  }, [birthDate, today, profile]);
+  const centerWeek = weeksAll.length ? weeksAll[weekOffset + RANGE] : null;
+  const weekDays = centerWeek ? centerWeek.days : [];
+  const bestIdx = centerWeek ? centerWeek.bestIdx : 0;
+
+  // 이번 주(offset 0) 토요일 추첨 = nextDrwNo. 주 이동마다 ±1회차.
+  const weekDrwNo = nextDrwNo + weekOffset;
+  const weekWord =
+    weekOffset === 0 ? '이번 주'
+    : weekOffset === -1 ? '지난 주'
+    : weekOffset === 1 ? '다음 주'
+    : weekOffset < 0 ? `${-weekOffset}주 전` : `${weekOffset}주 후`;
+
+  const nextDrwNoRef = useRef(nextDrwNo);
+  useEffect(() => { nextDrwNoRef.current = nextDrwNo; }, [nextDrwNo]);
+
+  // 부모(탭 페이저) 가로 스크롤 잠금 핸들 — 스트립 위 가로 제스처를 페이저가 가로채지 않게.
+  const setParentScrollRef = useRef(setParentScrollEnabled);
+  useEffect(() => { setParentScrollRef.current = setParentScrollEnabled; }, [setParentScrollEnabled]);
+  const lockPager = useCallback(() => setParentScrollRef.current?.(false), []);
+  const unlockPager = useCallback(() => setParentScrollRef.current?.(true), []);
+
+  // 트랙은 PAGE_COUNT개 페이지가 한 줄. offset k 페이지는 (k+RANGE)번째 → 그 페이지를 중앙에 두는
+  // translateX = -(k+RANGE)*STRIP_W. translateX는 누적 이동만, 절대 setValue로 되돌리지 않는다(깜빡임 원천 차단).
+  const restX = (off: number) => -(off + RANGE) * STRIP_W;
+  const weekOffsetRef = useRef(0);
+  useEffect(() => { weekOffsetRef.current = weekOffset; }, [weekOffset]);
+  const stripX = useRef(new Animated.Value(restX(0))).current;
+
+  // 목표 주로 슬라이드한 뒤 중앙 오프셋만 갱신(스트립 셀은 안 바뀜 → 깜빡임 없음).
+  const slideToWeek = useCallback((target: number) => {
+    const clamped = Math.max(-RANGE, Math.min(RANGE, target));
+    Animated.spring(stripX, { toValue: restX(clamped), useNativeDriver: true, speed: 18, bounciness: 4 })
+      .start(() => setWeekOffset(clamped));
+  }, [stripX]);
+
+  const changeWeek = useCallback((delta: number) => {
+    const cur = weekOffsetRef.current;
+    let target = cur + delta;
+    if (nextDrwNoRef.current + target < 1) target = cur; // 1회차 이전으론 못 감
+    if (target !== cur) slideToWeek(target);
+  }, [slideToWeek]);
+  const goThisWeek = useCallback(() => slideToWeek(0), [slideToWeek]);
+
+  const weekPan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy) * 1.2,
+      onPanResponderGrant: () => setParentScrollRef.current?.(false),
+      onPanResponderMove: (_, g) => stripX.setValue(restX(weekOffsetRef.current) + g.dx),
+      onPanResponderRelease: (_, g) => {
+        setParentScrollRef.current?.(true);
+        const TH = 45;
+        const cur = weekOffsetRef.current;
+        let target = cur;
+        if (g.dx <= -TH) target = Math.min(RANGE, cur + 1);
+        else if (g.dx >= TH && nextDrwNoRef.current + cur - 1 >= 1) target = Math.max(-RANGE, cur - 1);
+        // 항상 translateX는 목표(또는 제자리) rest로 스프링. 중앙 오프셋은 애니 끝나고 갱신.
+        Animated.spring(stripX, { toValue: restX(target), useNativeDriver: true, speed: 18, bounciness: 4 })
+          .start(() => { if (target !== weekOffsetRef.current) setWeekOffset(target); });
+      },
+      onPanResponderTerminate: () => {
+        setParentScrollRef.current?.(true);
+        Animated.spring(stripX, { toValue: restX(weekOffsetRef.current), useNativeDriver: true, speed: 18, bounciness: 4 }).start();
+      },
+    }),
+  ).current;
 
   // 로또 추첨은 토요일 1회 → 번호는 베스트 날 기운으로 이번 주 1세트 그룹(요일 무관).
   const selected = weekDays[bestIdx];
@@ -139,17 +225,17 @@ export default function SajuContent({
   }
 
   const toggleSelectSet = useCallback(async (numbers: number[]) => {
-    const res = await toggleSelect(numbers, nextDrwNo);
+    const res = await toggleSelect(numbers, weekDrwNo);
     if (!res) return;
     if (res.type === 'committed') {
       onTicketSaved?.();
-      Alert.alert('내 번호 시트 완성! 🎯', `5개 번호가 모여서 ${nextDrwNo}회차 내 번호로 저장되었습니다.`, [
+      Alert.alert('내 번호 시트 완성! 🎯', `5개 번호가 모여서 ${weekDrwNo}회차 내 번호로 저장되었습니다.`, [
         { text: '확인' }, { text: '내 번호 보기', onPress: onOpenTickets },
       ]);
     } else if (res.type === 'full') {
       Alert.alert('가득 찼어요', '5개가 모이면 자동으로 시트로 저장됩니다.');
     }
-  }, [nextDrwNo, onOpenTickets, onTicketSaved, toggleSelect]);
+  }, [weekDrwNo, onOpenTickets, onTicketSaved, toggleSelect]);
 
   if (!loaded) return <View style={s.safe} />;
 
@@ -244,27 +330,56 @@ export default function SajuContent({
           </View>
         ) : selected ? (
           <>
-            {/* 주간 점수 스트립 */}
-            <View style={s.weekCard}>
-              <Text style={s.weekTitle}>이번 주 요일별 운 · 사기 좋은 날 👑</Text>
-              <View style={s.weekRow}>
-                {weekDays.map((day, i) => {
-                  const isBest = i === bestIdx;
-                  return (
-                    <View key={i} style={[s.dayCell, isBest && s.dayCellBest]}>
-                      <Text style={[s.dayLabel, day.isToday && s.dayToday]}>{day.label}</Text>
-                      <Text style={[s.dayScore, { color: gradeColor(day.fortune.grade) }]}>{day.fortune.score}</Text>
-                      <Text style={s.dayCrown}>{isBest ? '👑' : ' '}</Text>
+            {/* 주간 점수 스트립 — 좌우 스와이프/화살표로 주 이동 */}
+            <View
+              style={s.weekCard}
+              {...weekPan.panHandlers}
+              onTouchStart={lockPager}
+              onTouchEnd={unlockPager}
+              onTouchCancel={unlockPager}
+            >
+              <View style={s.weekHead}>
+                <TouchableOpacity onPress={() => changeWeek(-1)} disabled={weekDrwNo <= 1 || weekOffset <= -RANGE} hitSlop={10} style={s.weekNav} activeOpacity={0.6}>
+                  <Ionicons name="chevron-back" size={18} color={weekDrwNo <= 1 || weekOffset <= -RANGE ? C.dim : C.black} />
+                </TouchableOpacity>
+                <View style={s.weekTitleWrap}>
+                  <Text style={s.weekTitle} numberOfLines={1}>{weekWord} {weekDrwNo}회차</Text>
+                  {weekOffset !== 0 && (
+                    <TouchableOpacity onPress={goThisWeek} style={s.weekTodayBtn} activeOpacity={0.7}>
+                      <Text style={s.weekTodayText}>이번 주로</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+                <TouchableOpacity onPress={() => changeWeek(1)} disabled={weekOffset >= RANGE} hitSlop={10} style={s.weekNav} activeOpacity={0.6}>
+                  <Ionicons name="chevron-forward" size={18} color={weekOffset >= RANGE ? C.dim : C.black} />
+                </TouchableOpacity>
+              </View>
+              <View style={s.weekStripClip}>
+                <Animated.View style={[s.weekTrack, { width: STRIP_W * PAGE_COUNT }, { transform: [{ translateX: stripX }] }]}>
+                  {weeksAll.map((wk) => (
+                    <View key={wk.offset} style={s.weekPage}>
+                      {wk.days.map((day, i) => {
+                        const isBest = i === wk.bestIdx;
+                        const md = `${day.date.getMonth() + 1}/${day.date.getDate()}`;
+                        return (
+                          <View key={i} style={[s.dayCell, isBest && s.dayCellBest]}>
+                            {isBest && <Text style={s.dayCrown}>👑</Text>}
+                            <Text style={[s.dayDate, day.isToday && s.dayToday]}>{md}</Text>
+                            <Text style={[s.dayLabel, day.isToday && s.dayToday]}>{day.label}</Text>
+                            <Text style={[s.dayScore, { color: gradeColor(day.fortune.grade) }]}>{day.fortune.score}</Text>
+                          </View>
+                        );
+                      })}
                     </View>
-                  );
-                })}
+                  ))}
+                </Animated.View>
               </View>
             </View>
 
             {/* 선택한 날 히어로 */}
             <View style={s.heroCard}>
               <Text style={s.heroLabel}>
-                👑 이번 주 사기 좋은 날 · {selected.label}요일{profile?.name ? ` · ${profile.name}님` : ''}
+                👑 {weekWord} 사기 좋은 날 · {selected.date.getMonth() + 1}/{selected.date.getDate()} {selected.label}요일
               </Text>
               <Text style={[s.heroScore, { color: gradeColor(selected.fortune.grade) }]}>{selected.fortune.score}</Text>
               <View style={[s.gradeBadge, { backgroundColor: gradeColor(selected.fortune.grade) }]}>
@@ -293,7 +408,7 @@ export default function SajuContent({
             {/* 맞춤 번호 — 추천 레이아웃 + 별표 */}
             <View style={s.card}>
               <View style={s.cardHead}>
-                <Text style={s.cardTitle}>이번 주 추천 번호 · {sets.length}세트</Text>
+                <Text style={s.cardTitle}>{weekWord} 추천 번호 · {sets.length}세트</Text>
               </View>
               <Text style={s.weekNote}>로또 추첨은 토요일 1회예요. 이 번호로 사기 좋은 날({selected.label})에 사보세요.</Text>
               <Text style={s.pickHint}>☆를 눌러 마음에 드는 세트를 모으세요. {pending.length}/{PENDING_GAMES_LIMIT}개 모이면 내 번호로 자동 저장돼요.</Text>
@@ -370,14 +485,23 @@ const s = StyleSheet.create({
   cancelText: { fontSize: 12, color: C.gray },
   privacy: { fontSize: 10.5, color: C.gray, marginTop: 14, textAlign: 'center', lineHeight: 15 },
   weekCard: { marginHorizontal: 16, marginTop: 12, backgroundColor: C.card, borderRadius: 16, padding: 12, borderWidth: 1, borderColor: C.border },
-  weekTitle: { fontSize: 12, fontWeight: '800', color: C.black, marginBottom: 10, marginLeft: 2 },
-  weekRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 4 },
-  dayCell: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: 'transparent', backgroundColor: '#FFFFFF' },
+  weekHead: { flexDirection: 'row', alignItems: 'center' },
+  weekNav: { paddingHorizontal: 2, paddingVertical: 2 },
+  weekTitleWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  weekTitle: { textAlign: 'center', fontSize: 12, fontWeight: '800', color: C.black },
+  weekTodayBtn: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, borderWidth: 1, borderColor: C.accent, backgroundColor: '#FFF3EE' },
+  weekTodayText: { fontSize: 10, fontWeight: '700', color: C.accent },
+  // 캐러셀: 한 페이지(STRIP_W)만 보이게 가로 클립, 트랙은 3페이지폭. 크라운 안 잘리게 paddingTop 확보.
+  weekStripClip: { width: STRIP_W, marginTop: 4, paddingTop: 14, overflow: 'hidden' },
+  weekTrack: { flexDirection: 'row' },
+  weekPage: { width: STRIP_W, flexDirection: 'row', justifyContent: 'space-between' },
+  dayCell: { width: DAY_CELL_W, alignItems: 'center', paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: 'transparent', backgroundColor: '#FFFFFF' },
   dayCellBest: { borderColor: C.accent, backgroundColor: '#FFF3EE' },
-  dayLabel: { fontSize: 11, fontWeight: '700', color: C.gray },
+  dayDate: { fontSize: 9.5, fontWeight: '700', color: C.gray },
+  dayLabel: { fontSize: 11, fontWeight: '700', color: C.black, marginTop: 1 },
   dayToday: { color: C.accent },
   dayScore: { fontSize: 16, fontWeight: '900', marginTop: 3 },
-  dayCrown: { fontSize: 11, marginTop: 1, lineHeight: 14 },
+  dayCrown: { position: 'absolute', top: -13, left: 0, right: 0, textAlign: 'center', fontSize: 14, lineHeight: 16, zIndex: 5 },
   heroCard: { marginHorizontal: 16, marginTop: 12, backgroundColor: C.card, borderRadius: 20, paddingVertical: 22, paddingHorizontal: 16, borderWidth: 1, borderColor: C.border, alignItems: 'center' },
   heroLabel: { fontSize: 12, color: C.gray, fontWeight: '700' },
   heroScore: { fontSize: 58, fontWeight: '900', marginTop: 2, lineHeight: 64 },

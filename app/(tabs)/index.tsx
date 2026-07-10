@@ -102,7 +102,7 @@ export default function App() {
           onMomentumScrollEnd={e => setPage(Math.round(e.nativeEvent.contentOffset.x / width))}
         >
           <View style={{ width }}><HomeContent draws={draws} onTicketSaved={refreshTickets} onOpenTickets={() => goTo(4)} /></View>
-          <View style={{ width }}><SajuContent draws={draws} onTicketSaved={refreshTickets} onOpenTickets={() => goTo(4)} /></View>
+          <View style={{ width }}><SajuContent draws={draws} setParentScrollEnabled={setScrollEnabled} onTicketSaved={refreshTickets} onOpenTickets={() => goTo(4)} /></View>
           <View style={{ width }}><FixedPickContent draws={draws} onTicketSaved={refreshTickets} onOpenTickets={() => goTo(4)} /></View>
           <View style={{ width }}>
             <SumGeneratorContent draws={draws} setParentScrollEnabled={setScrollEnabled} onTicketSaved={refreshTickets} onOpenTickets={() => goTo(4)} />
@@ -112,7 +112,7 @@ export default function App() {
           <View style={{ width }}><StatsContent draws={draws} /></View>
         </ScrollView>
 
-        <View style={[s.tabBar, { paddingBottom: Math.max(13, insets.bottom + 8) }]}>
+        <View style={[s.tabBar, { paddingBottom: Math.max(8, insets.bottom - 18) }]}>
           {TABS.map((tab, i) => (
             <TouchableOpacity key={tab.label} style={s.tab} onPress={() => goTo(i)}>
               <Ionicons name={tab.icon as any} size={19} color={page === i ? '#1A1A1A' : '#BBBBBB'} />
