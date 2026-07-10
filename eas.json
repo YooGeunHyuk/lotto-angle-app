@@ -20,6 +20,11 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascAppId": "6764521345",
+        "appleTeamId": "27V75H7TGZ"
+      }
+    }
   }
 }
