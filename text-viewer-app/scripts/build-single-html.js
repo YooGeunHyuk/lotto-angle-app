@@ -26,8 +26,16 @@ const ioniconsFile = fs.readdirSync(fontsDir).find((f) => f.startsWith('Ionicons
 if (!ioniconsFile) throw new Error('Ionicons font not found in dist');
 const fontB64 = fs.readFileSync(path.join(fontsDir, ioniconsFile)).toString('base64');
 
+const iconPath = path.join(__dirname, '..', 'assets', 'icon.png');
+const iconB64 = fs.existsSync(iconPath) ? fs.readFileSync(iconPath).toString('base64') : null;
+
 const html = `<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, shrink-to-fit=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="텍스트뷰어" />
+${iconB64 ? `<link rel="apple-touch-icon" href="data:image/png;base64,${iconB64}" />` : ''}
 <title>말하는 텍스트뷰어</title>
 <style>
   html, body { height: 100%; margin: 0; }

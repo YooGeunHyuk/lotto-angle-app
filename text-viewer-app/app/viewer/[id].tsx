@@ -7,6 +7,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -291,6 +292,24 @@ export default function ViewerScreen() {
     [scrollToPara, stopTts],
   );
 
+  /**
+   * 재생 중 위치를 옮길 때 stop 직후 바로 speak하면 iOS 사파리에서
+   * 간헐적으로 무시되는 문제가 있어, 웹에서는 짧게 기다렸다가 재생한다.
+   */
+  const stopThenSpeak = useCallback(
+    (idx: number) => {
+      Speech.stop();
+      if (Platform.OS === 'web') {
+        setTimeout(() => {
+          if (speakingRef.current) speakAt(idx);
+        }, 80);
+      } else {
+        speakAt(idx);
+      }
+    },
+    [speakAt],
+  );
+
   const startTtsFromPara = useCallback(
     (paraIndex: number) => {
       const map = paraToSentenceRef.current;
@@ -302,10 +321,9 @@ export default function ViewerScreen() {
       pausedRef.current = false;
       ttsErrorCountRef.current = 0;
       setSpeaking(true);
-      Speech.stop();
-      speakAt(sentenceIdx);
+      stopThenSpeak(sentenceIdx);
     },
-    [speakAt],
+    [stopThenSpeak],
   );
 
   const toggleTts = useCallback(() => {
@@ -337,10 +355,9 @@ export default function ViewerScreen() {
         Math.max(0, sentenceIdxRef.current + delta),
         sentencesRef.current.length - 1,
       );
-      Speech.stop();
-      speakAt(next);
+      stopThenSpeak(next);
     },
-    [speakAt],
+    [stopThenSpeak],
   );
 
   const cycleRate = useCallback(() => {
@@ -356,10 +373,9 @@ export default function ViewerScreen() {
     saveSettings(next).catch(() => {});
     // 재생 중이면 현재 문장부터 새 속도로 다시 읽는다
     if (speakingRef.current) {
-      Speech.stop();
-      speakAt(sentenceIdxRef.current);
+      stopThenSpeak(sentenceIdxRef.current);
     }
-  }, [speakAt]);
+  }, [stopThenSpeak]);
 
   // ---------- 설정 ----------
   const handleSettingsChange = useCallback((next: ReaderSettings) => {
