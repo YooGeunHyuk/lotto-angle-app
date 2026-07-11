@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "말하는 텍스트뷰어",
+    "slug": "text-viewer-voice",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "textviewervoice",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.meetyuuu.textviewervoice",
+      "infoPlist": {
+        "UIBackgroundModes": ["audio"]
+      }
+    },
+    "android": {
+      "package": "com.meetyuuu.textviewervoice",
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "output": "static"
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
