@@ -4,6 +4,7 @@
     "slug": "text-viewer-voice",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "scheme": "textviewervoice",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -16,7 +17,11 @@
     },
     "android": {
       "package": "com.meetyuuu.textviewervoice",
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#2563EB"
+      }
     },
     "web": {
       "output": "single"
