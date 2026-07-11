@@ -34,6 +34,16 @@ npx expo start
 - TTS는 기기의 시스템 음성 엔진을 사용하므로 **실기기에서 테스트**하는 것을 권장합니다.
   (Android는 설정 > 접근성 > TTS 출력에서 한국어 음성 데이터가 설치되어 있어야 합니다)
 
+### 웹 데모 (단일 HTML 파일)
+
+브라우저에서 바로 실행 가능한 단일 HTML 파일을 만들 수 있습니다.
+웹에서는 본문을 localStorage에 저장하므로 4MB 이하 txt만 지원합니다.
+
+```bash
+npx expo export --platform web
+node scripts/build-single-html.js   # dist/single.html 생성
+```
+
 ## 구조
 
 ```

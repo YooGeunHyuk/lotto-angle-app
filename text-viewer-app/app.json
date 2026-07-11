@@ -19,7 +19,7 @@
       "edgeToEdgeEnabled": true
     },
     "web": {
-      "output": "static"
+      "output": "single"
     },
     "plugins": ["expo-router"],
     "experiments": {

@@ -1,13 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
-import * as FileSystem from 'expo-file-system/legacy';
-import { useKeepAwake } from 'expo-keep-awake';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Speech from 'expo-speech';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
   StyleSheet,
@@ -17,8 +15,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import SettingsSheet from '@/src/components/SettingsSheet';
-import { decodeTextFromBase64 } from '@/src/lib/encoding';
-import { getBook, updateReadingPosition } from '@/src/lib/library';
+import { showAlert } from '@/src/lib/dialog';
+import { getBook, loadBookText, updateReadingPosition } from '@/src/lib/library';
 import { DEFAULT_SETTINGS, loadSettings, saveSettings } from '@/src/lib/settings';
 import { READER_THEMES } from '@/src/lib/theme';
 import {
@@ -73,7 +71,6 @@ const Paragraph = memo(function Paragraph({
 });
 
 export default function ViewerScreen() {
-  useKeepAwake();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
 
@@ -122,6 +119,14 @@ export default function ViewerScreen() {
 
   const colors = READER_THEMES[settings.theme];
 
+  // 읽는 동안 화면 꺼짐 방지 (웹은 Wake Lock 권한이 거부될 수 있어 조용히 무시)
+  useEffect(() => {
+    activateKeepAwakeAsync().catch(() => {});
+    return () => {
+      Promise.resolve(deactivateKeepAwake()).catch(() => {});
+    };
+  }, []);
+
   // ---------- 로딩 ----------
   useEffect(() => {
     let cancelled = false;
@@ -134,9 +139,7 @@ export default function ViewerScreen() {
         if (cancelled) return;
         setSettings(loadedSettings);
         if (!loadedBook) {
-          Alert.alert('오류', '책을 찾을 수 없습니다.', [
-            { text: '확인', onPress: () => router.back() },
-          ]);
+          showAlert('오류', '책을 찾을 수 없습니다.', () => router.back());
           return;
         }
         bookRef.current = loadedBook;
@@ -144,11 +147,8 @@ export default function ViewerScreen() {
         initialIndexRef.current = loadedBook.paraIndex ?? 0;
         currentIndexRef.current = loadedBook.paraIndex ?? 0;
 
-        const base64 = await FileSystem.readAsStringAsync(loadedBook.fileUri, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
+        const { text, encoding } = await loadBookText(loadedBook);
         if (cancelled) return;
-        const { text, encoding } = decodeTextFromBase64(base64);
         encodingRef.current = encoding;
         const paras = splitParagraphs(text);
         paraCountRef.current = paras.length;
@@ -157,9 +157,7 @@ export default function ViewerScreen() {
       } catch (e) {
         console.warn(e);
         if (!cancelled) {
-          Alert.alert('오류', '파일을 여는 중 문제가 발생했습니다.', [
-            { text: '확인', onPress: () => router.back() },
-          ]);
+          showAlert('오류', '파일을 여는 중 문제가 발생했습니다.', () => router.back());
         }
       }
     })();

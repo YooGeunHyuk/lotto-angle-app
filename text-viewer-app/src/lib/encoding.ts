@@ -8,11 +8,18 @@ export interface DecodedText {
 
 /**
  * base64로 읽은 파일 내용을 인코딩 자동 감지 후 문자열로 디코딩한다.
+ */
+export function decodeTextFromBase64(base64: string): DecodedText {
+  return decodeTextFromBytes(Buffer.from(base64, 'base64'));
+}
+
+/**
+ * 파일 바이트를 인코딩 자동 감지 후 문자열로 디코딩한다.
  * 감지 순서: BOM(UTF-16LE/BE, UTF-8) → UTF-8 유효성 검사 → CP949(EUC-KR 확장) 폴백.
  * 국내 텍스트 파일 대부분이 UTF-8 아니면 CP949라서 이 두 단계로 충분하다.
  */
-export function decodeTextFromBase64(base64: string): DecodedText {
-  const buf = Buffer.from(base64, 'base64');
+export function decodeTextFromBytes(bytes: Uint8Array): DecodedText {
+  const buf = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes);
 
   if (buf.length >= 2) {
     if (buf[0] === 0xff && buf[1] === 0xfe) {

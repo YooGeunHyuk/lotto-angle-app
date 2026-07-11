@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
-  Alert,
   FlatList,
   Pressable,
   StyleSheet,
@@ -11,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { showAlert, showConfirm } from '@/src/lib/dialog';
 import { importBooks, loadBooks, removeBook } from '@/src/lib/library';
 import { formatBytes, formatRelativeTime } from '@/src/lib/textUtils';
 import { Book } from '@/src/lib/types';
@@ -34,10 +34,16 @@ export default function LibraryScreen() {
     if (importing) return;
     setImporting(true);
     try {
-      const added = await importBooks();
+      const { added, skipped } = await importBooks();
       if (added.length > 0) refresh();
+      if (skipped.length > 0) {
+        showAlert(
+          '일부 파일을 건너뛰었어요',
+          `웹 버전에서는 4MB 이하 txt만 지원해요:\n${skipped.join('\n')}`,
+        );
+      }
     } catch (e) {
-      Alert.alert('가져오기 실패', '파일을 가져오는 중 문제가 발생했습니다.');
+      showAlert('가져오기 실패', '파일을 가져오는 중 문제가 발생했습니다.');
       console.warn(e);
     } finally {
       setImporting(false);
@@ -45,17 +51,15 @@ export default function LibraryScreen() {
   };
 
   const handleDelete = (book: Book) => {
-    Alert.alert('책 삭제', `"${book.title}"을(를) 서재에서 삭제할까요?`, [
-      { text: '취소', style: 'cancel' },
-      {
-        text: '삭제',
-        style: 'destructive',
-        onPress: async () => {
-          await removeBook(book.id);
-          refresh();
-        },
+    showConfirm(
+      '책 삭제',
+      `"${book.title}"을(를) 서재에서 삭제할까요?`,
+      async () => {
+        await removeBook(book.id);
+        refresh();
       },
-    ]);
+      '삭제',
+    );
   };
 
   const renderItem = ({ item }: { item: Book }) => (
