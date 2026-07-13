@@ -26,6 +26,7 @@ const initial = {
   deposits: [], // goal-deposit challenges (예치 챌린지)
   donations: { totalMeters: 0, campaignId: null },
   buddies: [],
+  moods: {}, // { 'YYYY-MM-DD': score 1..5 } — walk↔mood link (mental health)
   settings: { sound: true, haptics: true },
 }
 
@@ -82,6 +83,8 @@ function reducer(state, action) {
       }
     case 'SET_DONATION_CAMPAIGN':
       return { ...state, donations: { ...state.donations, campaignId: action.id } }
+    case 'SET_MOOD':
+      return { ...state, moods: { ...state.moods, [action.day || state.today]: action.score } }
     case 'RESET':
       return { ...initial, profile: { ...initial.profile, onboarded: false } }
     default:
@@ -141,15 +144,41 @@ export function useStore() {
 }
 
 // Seed some demo history so charts/leaderboards look alive in preview.
+// Moods are correlated with steps (more walking → better mood) so the
+// walk↔mood insight has something real to show.
 export function seedDemoHistory(dispatch, state) {
   if (Object.keys(state.history).length > 0) return
   const history = {}
+  const moods = {}
   let s = 1234567
   const rnd = () => ((s = (s * 1103515245 + 12345) & 0x7fffffff), s / 0x7fffffff)
   for (let i = 1; i <= 30; i++) {
     const d = new Date()
     d.setDate(d.getDate() - i)
-    history[d.toISOString().slice(0, 10)] = Math.round(3000 + rnd() * 9000)
+    const key = d.toISOString().slice(0, 10)
+    const steps = Math.round(3000 + rnd() * 9000)
+    history[key] = steps
+    // mood 1..5 loosely rising with steps, plus noise
+    const base = 2 + (steps / 12000) * 2.5
+    moods[key] = Math.max(1, Math.min(5, Math.round(base + (rnd() - 0.5))))
   }
-  dispatch({ type: 'HYDRATE', payload: { history } })
+  dispatch({ type: 'HYDRATE', payload: { history, moods } })
+}
+
+// Correlation-ish summary between walking and mood (for coach insight).
+export function walkMoodSummary(state) {
+  const days = Object.keys(state.moods)
+  if (days.length < 5) return null
+  const goal = state.profile.dailyGoal
+  let hi = [],
+    lo = []
+  for (const d of days) {
+    const steps = state.history[d] || 0
+    const m = state.moods[d]
+    if (steps >= goal * 0.8) hi.push(m)
+    else lo.push(m)
+  }
+  const avg = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0)
+  if (!hi.length || !lo.length) return null
+  return { activeMood: avg(hi), lowMood: avg(lo), diff: avg(hi) - avg(lo), n: days.length }
 }

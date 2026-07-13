@@ -1,13 +1,27 @@
-import { useState } from 'react'
-import { useStore } from '../lib/store.jsx'
+import { useEffect, useState } from 'react'
+import { useStore, walkMoodSummary, seedDemoHistory } from '../lib/store.jsx'
 import { buildInsights, coachReply } from '../lib/coach.js'
-import { IcSpark } from '../components/Icons.jsx'
+import { IcHeart, IcSpark } from '../components/Icons.jsx'
 
 const SUGGESTIONS = ['무릎이 아파요', '동기부여가 안 돼요', '언제 걷는 게 좋아요?', '살 빼려면?']
+const MOODS = [
+  { score: 1, emoji: '😞', label: '힘듦' },
+  { score: 2, emoji: '😕', label: '별로' },
+  { score: 3, emoji: '😐', label: '보통' },
+  { score: 4, emoji: '🙂', label: '좋음' },
+  { score: 5, emoji: '😄', label: '최고' },
+]
 
 export default function Coach() {
-  const { state } = useStore()
+  const { state, dispatch } = useStore()
   const insights = buildInsights(state)
+  const mood = walkMoodSummary(state)
+  const todayMood = state.moods[state.today]
+
+  useEffect(() => {
+    seedDemoHistory(dispatch, state)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [msgs, setMsgs] = useState([
     { role: 'coach', text: `안녕하세요, ${state.profile.name}님. 저는 당신의 걷기 코치예요. 오늘 컨디션은 어때요?` },
   ])
@@ -30,6 +44,53 @@ export default function Coach() {
           당신의 걸음 데이터를 읽고 매일 다르게 조언해요.
         </p>
       </header>
+
+      {/* Mood check-in — walk↔mood link (mental health differentiation) */}
+      <div className="card" style={{ marginBottom: 12, borderLeft: '3px solid var(--coral)' }}>
+        <div className="row gap-8" style={{ color: 'var(--coral)', marginBottom: 8 }}>
+          <IcHeart style={{ width: 18, height: 18 }} />
+          <strong style={{ fontSize: 14 }}>오늘 기분은 어때요?</strong>
+        </div>
+        <div className="row between">
+          {MOODS.map((m) => (
+            <button
+              key={m.score}
+              onClick={() => dispatch({ type: 'SET_MOOD', score: m.score })}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 4,
+                padding: '8px 6px',
+                borderRadius: 14,
+                flex: 1,
+                background: todayMood === m.score ? 'rgba(255,107,107,0.15)' : 'transparent',
+                border: todayMood === m.score ? '1px solid rgba(255,107,107,0.4)' : '1px solid transparent',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span style={{ fontSize: 26, filter: todayMood && todayMood !== m.score ? 'grayscale(0.6) opacity(0.5)' : 'none' }}>{m.emoji}</span>
+              <span className="dim" style={{ fontSize: 10 }}>{m.label}</span>
+            </button>
+          ))}
+        </div>
+        {mood && (
+          <div
+            style={{
+              marginTop: 12,
+              padding: '10px 12px',
+              borderRadius: 12,
+              background: 'var(--surface-2)',
+              fontSize: 12.5,
+              lineHeight: 1.5,
+            }}
+          >
+            📈 지난 {mood.n}일 데이터: 목표를 채운 날 평균 기분이{' '}
+            <strong style={{ color: 'var(--coral)' }}>{mood.activeMood.toFixed(1)}점</strong>, 덜 걸은 날은{' '}
+            <strong>{mood.lowMood.toFixed(1)}점</strong>이었어요. 걷는 날 기분이 더 좋았네요{mood.diff >= 0.3 ? ' 💚' : '.'}
+          </div>
+        )}
+      </div>
 
       {/* Daily insights */}
       {insights.map((ins, i) => (
