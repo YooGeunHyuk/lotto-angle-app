@@ -1,6 +1,16 @@
-import { useStore } from '../lib/store.jsx'
+import { useStore, weekActiveDays, walkMoodSummary } from '../lib/store.jsx'
 import { stepsToKm } from '../lib/pedometer.js'
-import { IcCheck, IcLeaf } from '../components/Icons.jsx'
+import { IcCheck, IcLeaf, IcSpark } from '../components/Icons.jsx'
+
+function weekSteps(state) {
+  let sum = state.stepsToday
+  for (let i = 1; i < 7; i++) {
+    const d = new Date(state.today)
+    d.setDate(d.getDate() - i)
+    sum += state.history[d.toISOString().slice(0, 10)] || 0
+  }
+  return sum
+}
 
 export default function Profile() {
   const { state, dispatch } = useStore()
@@ -40,6 +50,9 @@ export default function Profile() {
         <div className="card"><div className="muted" style={{ fontSize: 12 }}>누적 거리</div><div className="stat-num mt-8">{totalKm.toFixed(1)} km</div></div>
         <div className="card"><div className="muted" style={{ fontSize: 12 }}>누적 걸음</div><div className="stat-num mt-8">{(totalSteps / 1000).toFixed(1)}k</div></div>
       </div>
+
+      {/* Weekly reflection — self-monitoring boosts adherence */}
+      <WeeklyReflection state={state} isPlus={isPlus} />
 
       {/* Donation impact */}
       <div className="card mt-16" style={{ borderLeft: '3px solid var(--coral)' }}>
@@ -97,6 +110,55 @@ export default function Profile() {
       <div className="dim" style={{ fontSize: 11, textAlign: 'center', marginTop: 20 }}>
         Stride · 함께 걷는 습관 · v0.1 (프로토타입)
       </div>
+    </div>
+  )
+}
+
+function WeeklyReflection({ state, isPlus }) {
+  const active = weekActiveDays(state)
+  const target = state.profile.weeklyGoalDays
+  const steps = weekSteps(state)
+  const mood = walkMoodSummary(state)
+  const met = active >= target
+
+  // Warm, self-compassionate framing — never shaming a low week.
+  const headline = met
+    ? '이번 주, 잘 걸었어요 🎉'
+    : active > 0
+      ? '이번 주도 걸음을 이어갔어요'
+      : '새로운 한 주, 가볍게 시작해요'
+  const note = met
+    ? `목표한 주 ${target}일을 지켰어요. 이 리듬이 습관을 만듭니다.`
+    : active > 0
+      ? `${active}일 활동했어요. 완벽하지 않아도 괜찮아요 — 한 번의 쉼이 습관을 무너뜨리지 않아요.`
+      : '지난 걸 자책하지 말아요. 오늘 5분 산책이면 다시 출발이에요.'
+
+  return (
+    <div className="card mt-16" style={{ borderLeft: '3px solid var(--violet)' }}>
+      <div className="row between" style={{ marginBottom: 10 }}>
+        <div className="row gap-8" style={{ color: 'var(--violet)' }}>
+          <IcSpark style={{ width: 18, height: 18 }} />
+          <strong style={{ fontSize: 14 }}>이번 주 돌아보기</strong>
+        </div>
+        {!isPlus && <span className="chip">Plus 심층 리포트</span>}
+      </div>
+      <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 6 }}>{headline}</div>
+      <div className="grid-2" style={{ marginTop: 8 }}>
+        <Mini label="활동일수" value={`${active} / ${target}일`} />
+        <Mini label="이번 주 걸음" value={`${(steps / 1000).toFixed(1)}k`} />
+        <Mini label="거리" value={`${stepsToKm(steps).toFixed(1)} km`} />
+        <Mini label="기분 추이" value={mood ? `${mood.activeMood.toFixed(1)} / 5` : '—'} />
+      </div>
+      <p className="muted" style={{ fontSize: 12.5, marginTop: 12, lineHeight: 1.5 }}>{note}</p>
+    </div>
+  )
+}
+
+function Mini({ label, value }) {
+  return (
+    <div style={{ padding: '10px 12px', borderRadius: 12, background: 'var(--surface-2)' }}>
+      <div className="dim" style={{ fontSize: 11 }}>{label}</div>
+      <div style={{ fontSize: 17, fontWeight: 800, marginTop: 2 }}>{value}</div>
     </div>
   )
 }
