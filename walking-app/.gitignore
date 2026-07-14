@@ -2,3 +2,5 @@ node_modules
 dist
 dev-dist
 *.log
+dist-demo
+artifact.html
