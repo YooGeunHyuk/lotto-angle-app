@@ -54,15 +54,18 @@ export default function Profile() {
       {/* Weekly reflection — self-monitoring boosts adherence */}
       <WeeklyReflection state={state} isPlus={isPlus} />
 
-      {/* Donation impact */}
+      {/* Donation impact — demo-labeled, honest funding note */}
       <div className="card mt-16" style={{ borderLeft: '3px solid var(--coral)' }}>
-        <div className="row gap-8" style={{ color: 'var(--coral)', marginBottom: 6 }}>
-          <IcLeaf style={{ width: 18, height: 18 }} />
-          <strong style={{ fontSize: 14 }}>나의 기부 임팩트</strong>
+        <div className="row between" style={{ marginBottom: 6 }}>
+          <div className="row gap-8" style={{ color: 'var(--coral)' }}>
+            <IcLeaf style={{ width: 18, height: 18 }} />
+            <strong style={{ fontSize: 14 }}>나의 기부 임팩트</strong>
+          </div>
+          <span className="chip" style={{ padding: '2px 8px', fontSize: 10 }}>데모</span>
         </div>
-        <p className="muted" style={{ fontSize: 13, margin: 0 }}>
-          지금까지 걸은 거리로 <strong style={{ color: 'var(--text)' }}>{Math.round(totalKm * 1)}원</strong>이
-          유기견 산책 후원에 전환됐어요. 🐾
+        <p className="muted" style={{ fontSize: 13, margin: 0, lineHeight: 1.5 }}>
+          걸은 거리로 <strong style={{ color: 'var(--text)' }}>{Math.round(totalKm * 1)}원</strong> 후원 <span className="dim">(예시)</span>.
+          실제 후원금은 스폰서·구독 매출에서 나와 등록 공익법인에 전달돼요. 정식 출시 전까지는 예시 수치예요.
         </p>
       </div>
 

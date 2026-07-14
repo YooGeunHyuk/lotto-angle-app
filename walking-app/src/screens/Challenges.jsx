@@ -104,10 +104,16 @@ export default function Challenges() {
       <div className="card mt-16 row gap-12" style={{ alignItems: 'flex-start' }}>
         <span style={{ color: 'var(--text-3)' }}><IcLock /></span>
         <div>
-          <strong style={{ fontSize: 14 }}>왜 현금이 아니라 '씨앗'인가요?</strong>
-          <p className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-            현금 예치·상금은 사행성 규제 대상이에요. 씨앗은 앱 내 재화로, 프리미엄 혜택·기부·굿즈로만 교환돼
-            지속 가능하고 규제로부터 안전합니다.
+          <div className="row gap-8">
+            <strong style={{ fontSize: 14 }}>씨앗은 진짜 무슨 가치가 있나요?</strong>
+            <span className="chip" style={{ padding: '2px 8px', fontSize: 10 }}>데모</span>
+          </div>
+          <p className="muted" style={{ fontSize: 12, marginTop: 6, lineHeight: 1.6 }}>
+            현금 예치·상금은 사행성 규제 대상이라 쓰지 않아요. 씨앗은 앱 내 재화이고, 실제 가치는
+            <strong style={{ color: 'var(--text)' }}> 구독(Plus) 할인 · 파트너 쿠폰 · 기부 전환 · 굿즈</strong>로만
+            교환됩니다. 이 교환의 재원은 <strong style={{ color: 'var(--text)' }}>우리 매출·파트너·스폰서 예산</strong>이지,
+            신규 유저 돈이 아니에요(그래서 지속 가능). 지금 화면의 상금풀·참여자 수는 <strong>예시(데모)</strong>예요.
+            <br />자세한 자금·법 구조는 REWARDS.md 참고.
           </p>
         </div>
       </div>

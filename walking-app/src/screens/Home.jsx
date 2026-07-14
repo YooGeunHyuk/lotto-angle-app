@@ -86,14 +86,33 @@ export default function Home() {
       {/* Weekly mini chart */}
       <WeeklyBar history={state.history} today={steps} goal={goal} />
 
-      {/* Donation nudge (differentiation teaser) */}
-      <div className="card mt-16 row between" style={{ alignItems: 'center' }}>
-        <div style={{ maxWidth: '68%' }}>
-          <div className="eyebrow" style={{ color: 'var(--coral)' }}>함께 걷기 기부</div>
-          <div style={{ fontWeight: 700, marginTop: 4 }}>오늘 걸음으로 {(stepsToKm(steps) * 1).toFixed(1)}원 적립</div>
-          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>당신의 걸음이 유기견 산책 후원으로 전환돼요.</div>
+      {/* Donation nudge — honest sponsor-unlock model + demo disclosure */}
+      <div className="card mt-16" style={{ borderLeft: '3px solid var(--coral)' }}>
+        <div className="row between" style={{ alignItems: 'flex-start' }}>
+          <div style={{ maxWidth: '72%' }}>
+            <div className="row gap-8">
+              <span className="eyebrow" style={{ color: 'var(--coral)' }}>함께 걷기 기부</span>
+              <span className="chip" style={{ padding: '2px 8px', fontSize: 10 }}>데모</span>
+            </div>
+            <div style={{ fontWeight: 700, marginTop: 6 }}>
+              오늘 걸음이 후원 풀 {(stepsToKm(steps) * 1).toFixed(1)}원을 열었어요 <span className="dim">(예시)</span>
+            </div>
+            <div className="muted" style={{ fontSize: 12, marginTop: 4, lineHeight: 1.5 }}>
+              스폰서가 미리 걸어둔 후원금을, 당신의 걸음이 등록 단체로 전달해요.
+            </div>
+          </div>
+          <div style={{ fontSize: 34 }}>🐾</div>
         </div>
-        <div style={{ fontSize: 34 }}>🐾</div>
+        <details style={{ marginTop: 10 }}>
+          <summary style={{ listStyle: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--coral)', fontWeight: 700 }}>
+            어떻게 진짜 후원이 되나요? ▾
+          </summary>
+          <p className="muted" style={{ fontSize: 12, marginTop: 8, lineHeight: 1.6 }}>
+            걸음은 돈을 만들지 않아요. 실제 후원금은 <strong>기업 스폰서의 후원 풀</strong>(또는 우리 구독
+            매출의 일부)에서 나오고, 등록 공익법인에 전달됩니다. 정식 출시 전까지 이 수치는 <strong>예시</strong>이며
+            실제 이체는 일어나지 않아요. (자세히: REWARDS.md)
+          </p>
+        </details>
       </div>
     </div>
   )
