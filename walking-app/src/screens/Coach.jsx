@@ -1,7 +1,16 @@
 import { useEffect, useState } from 'react'
-import { useStore, walkMoodSummary, seedDemoHistory } from '../lib/store.jsx'
+import {
+  useStore,
+  walkMoodSummary,
+  seedDemoHistory,
+  habitDay,
+  HABIT_TARGET_DAYS,
+} from '../lib/store.jsx'
 import { buildInsights, coachReply } from '../lib/coach.js'
-import { IcHeart, IcSpark } from '../components/Icons.jsx'
+import { IcCheck, IcHeart, IcRoute, IcSpark } from '../components/Icons.jsx'
+
+const CUES = ['아침에 일어나면', '점심 먹고 나면', '퇴근 지하철에서 내리면', '저녁 먹고 나면', '커피 마시고 나면']
+const ACTIONS = ['10분 걷기', '집 앞 한 바퀴', '한 정거장 걸어가기', '동네 공원까지 걷기']
 
 const SUGGESTIONS = ['무릎이 아파요', '동기부여가 안 돼요', '언제 걷는 게 좋아요?', '살 빼려면?']
 const MOODS = [
@@ -44,6 +53,12 @@ export default function Coach() {
           당신의 걸음 데이터를 읽고 매일 다르게 조언해요.
         </p>
       </header>
+
+      {/* Habit progress — realistic 66-day horizon (counters the 21-day myth) */}
+      <HabitProgress state={state} />
+
+      {/* If-then walk plan — implementation intention + habit stacking */}
+      <WalkPlan state={state} dispatch={dispatch} />
 
       {/* Mood check-in — walk↔mood link (mental health differentiation) */}
       <div className="card" style={{ marginBottom: 12, borderLeft: '3px solid var(--coral)' }}>
@@ -166,6 +181,86 @@ export default function Coach() {
           <span className="chip chip-on">Plus</span>
         </div>
       </div>
+    </div>
+  )
+}
+
+function HabitProgress({ state }) {
+  const day = habitDay(state)
+  const pct = Math.min(1, day / HABIT_TARGET_DAYS)
+  const milestone = day < 42 ? '6주차(약 42일)에 습관이 단단해지기 시작해요' : '이제 습관이 자리잡는 구간이에요. 꾸준히!'
+  return (
+    <div className="card" style={{ marginBottom: 12, borderLeft: '3px solid var(--lime)' }}>
+      <div className="row between" style={{ marginBottom: 8 }}>
+        <div className="row gap-8" style={{ color: 'var(--lime)' }}>
+          <IcRoute style={{ width: 18, height: 18 }} />
+          <strong style={{ fontSize: 14 }}>습관 형성 진행도</strong>
+        </div>
+        <span className="chip">{day}일째 / {HABIT_TARGET_DAYS}일</span>
+      </div>
+      <div style={{ height: 10, borderRadius: 999, background: 'var(--surface-3)', overflow: 'hidden' }}>
+        <div style={{ width: `${pct * 100}%`, height: '100%', background: 'linear-gradient(90deg,#A3E635,#12B981)' }} />
+      </div>
+      <p className="muted" style={{ fontSize: 12, marginTop: 10, lineHeight: 1.5 }}>
+        습관이 자동화되기까지 <strong style={{ color: 'var(--text)' }}>평균 66일</strong>(사람마다 18~254일)이 걸려요.
+        '21일 법칙'은 근거가 약해요. {milestone}
+      </p>
+    </div>
+  )
+}
+
+function WalkPlan({ state, dispatch }) {
+  const { cue, action, enabled } = state.walkPlan
+  const set = (patch) => dispatch({ type: 'SET_WALK_PLAN', patch })
+  return (
+    <div className="card" style={{ marginBottom: 12, borderLeft: '3px solid var(--green-500)' }}>
+      <div className="row gap-8" style={{ color: 'var(--green-500)', marginBottom: 6 }}>
+        <IcCheck style={{ width: 18, height: 18 }} />
+        <strong style={{ fontSize: 14 }}>나의 걷기 약속</strong>
+      </div>
+      <p className="muted" style={{ fontSize: 12, marginTop: 0, marginBottom: 12, lineHeight: 1.5 }}>
+        '언제·무엇을' 미리 정해두면 실천율이 크게 올라가요(실행의도). 이미 하는 일에 걷기를 붙여보세요.
+      </p>
+
+      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>언제 (신호)</div>
+      <div className="row gap-8" style={{ flexWrap: 'wrap', marginBottom: 12 }}>
+        {CUES.map((c) => (
+          <button key={c} className={'chip' + (cue === c ? ' chip-on' : '')} onClick={() => set({ cue: c })}>
+            {c}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>무엇을 (행동)</div>
+      <div className="row gap-8" style={{ flexWrap: 'wrap', marginBottom: 12 }}>
+        {ACTIONS.map((a) => (
+          <button key={a} className={'chip' + (action === a ? ' chip-on' : '')} onClick={() => set({ action: a })}>
+            {a}
+          </button>
+        ))}
+      </div>
+
+      {cue && action && (
+        <div
+          style={{
+            padding: '12px 14px',
+            borderRadius: 14,
+            background: 'rgba(18,185,129,0.12)',
+            border: '1px solid rgba(18,185,129,0.3)',
+            fontSize: 14,
+            lineHeight: 1.5,
+          }}
+        >
+          약속: <strong>{cue}</strong> → <strong>{action}</strong>
+          <button
+            className={'btn btn-block mt-12 ' + (enabled ? 'btn-ghost' : 'btn-primary')}
+            style={{ padding: '10px' }}
+            onClick={() => set({ enabled: !enabled })}
+          >
+            {enabled ? '알림 켜짐 · 끄기' : '이 약속으로 리마인드 받기'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useStore, seedDemoHistory, weekActiveDays, briskMinutes } from '../lib/store.jsx'
+import { useStore, seedDemoHistory, weekActiveDays, briskMinutes, flexibleStreak } from '../lib/store.jsx'
 import { createPedometer, stepsToKcal, stepsToKm } from '../lib/pedometer.js'
 import Ring from '../components/Ring.jsx'
 import { IcBolt, IcFire, IcHeart, IcLeaf, IcRoute } from '../components/Icons.jsx'
@@ -47,7 +47,7 @@ export default function Home() {
           <div className="eyebrow">STRIDE</div>
           <h2>{greeting()}, {state.profile.name}님</h2>
         </div>
-        <div className="chip chip-on"><IcFire style={{ width: 14, height: 14 }} /> {state.streak}일 연속</div>
+        <div className="chip chip-on"><IcFire style={{ width: 14, height: 14 }} /> {flexibleStreak(state)}일 꾸준</div>
       </header>
 
       {/* Step ring */}

@@ -13,6 +13,24 @@ export function buildInsights(state) {
   const pct = goal ? stepsToday / goal : 0
   const out = []
 
+  // 0) relapse-aware welcome-back (self-compassion, not shame).
+  // If the last goal-met day was several days ago, greet the return warmly.
+  let gap = 0
+  for (let i = 1; i <= 14; i++) {
+    const d = new Date(state.today)
+    d.setDate(d.getDate() - i)
+    const key = d.toISOString().slice(0, 10)
+    if ((history[key] || 0) >= goal) break
+    gap = i
+  }
+  if (gap >= 3 && stepsToday < goal) {
+    out.push({
+      tone: 'welcome',
+      title: '다시 와줘서 반가워요 👋',
+      body: `며칠 쉬었어도 괜찮아요. 습관은 한 번 놓쳤다고 무너지지 않아요(연구로 확인된 사실). 오늘은 가볍게 ${Math.round(goal * 0.4).toLocaleString()}보부터 다시 시작해요.`,
+    })
+  }
+
   // 1) time-aware nudge
   if (pct < 1) {
     const remaining = goal - stepsToday

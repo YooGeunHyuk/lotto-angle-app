@@ -18,7 +18,11 @@ const initial = {
     ageBand: null, // '<60' | '60+' — personalizes the goal ceiling
     onboarded: false,
     plan: 'free', // 'free' | 'plus'
+    habitStartDate: null, // when the habit journey began (66-day progress)
   },
+  // Implementation intention (Gollwitzer): an if-then plan anchored to a
+  // daily routine (habit stacking). Strongest single adherence booster.
+  walkPlan: { cue: '', action: '', enabled: false },
   today: todayKey(),
   stepsToday: 0,
   briskToday: 0, // steps taken at moderate+ cadence (≥100 spm)
@@ -89,6 +93,8 @@ function reducer(state, action) {
       return { ...state, donations: { ...state.donations, campaignId: action.id } }
     case 'SET_MOOD':
       return { ...state, moods: { ...state.moods, [action.day || state.today]: action.score } }
+    case 'SET_WALK_PLAN':
+      return { ...state, walkPlan: { ...state.walkPlan, ...action.patch } }
     case 'RESET':
       return { ...initial, profile: { ...initial.profile, onboarded: false } }
     default:
@@ -166,7 +172,17 @@ export function seedDemoHistory(dispatch, state) {
     const base = 2 + (steps / 12000) * 2.5
     moods[key] = Math.max(1, Math.min(5, Math.round(base + (rnd() - 0.5))))
   }
-  dispatch({ type: 'HYDRATE', payload: { history, moods } })
+  // Seed a habit start ~14 days ago so the 66-day progress looks alive.
+  const hs = new Date()
+  hs.setDate(hs.getDate() - 14)
+  dispatch({
+    type: 'HYDRATE',
+    payload: {
+      history,
+      moods,
+      profile: { ...state.profile, habitStartDate: state.profile.habitStartDate || hs.toISOString().slice(0, 10) },
+    },
+  })
 }
 
 // Active days in the last 7 (incl. today) that met the daily goal.
@@ -188,6 +204,54 @@ export function weekActiveDays(state) {
 // Brisk (moderate-intensity) walking minutes today, from brisk step count.
 export function briskMinutes(state) {
   return Math.round(state.briskToday / 110)
+}
+
+// Days since the habit journey began. Real habit automaticity forms over a
+// median of ~66 days (Lally 2010, range 18–254) — not the 21-day myth.
+export const HABIT_TARGET_DAYS = 66
+export function habitDay(state) {
+  const start = state.profile.habitStartDate
+  if (!start) return 1
+  const ms = new Date(state.today) - new Date(start)
+  return Math.max(1, Math.floor(ms / 86400000) + 1)
+}
+
+// Flexible streak: consecutive recent days that EITHER met the goal OR are
+// allowed rest days. A single lapse doesn't zero it (counters the
+// what-the-hell effect); we look back and stop only after 2 straight misses.
+export function flexibleStreak(state) {
+  const goal = state.profile.dailyGoal
+  let streak = 0
+  let consecutiveMiss = 0
+  for (let i = 0; i < 60; i++) {
+    const d = new Date(state.today)
+    d.setDate(d.getDate() - i)
+    const key = d.toISOString().slice(0, 10)
+    const steps = i === 0 ? state.stepsToday : state.history[key] || 0
+    if (steps >= goal) {
+      streak++
+      consecutiveMiss = 0
+    } else {
+      // today not-yet-met shouldn't break the streak; only past days count as miss
+      if (i === 0) continue
+      consecutiveMiss++
+      if (consecutiveMiss >= 2) break
+      // one rest day is tolerated — counts toward keeping streak alive but not +1
+    }
+  }
+  return streak
+}
+
+// Detect a return after a gap (relapse) → trigger a warm welcome-back.
+export function daysSinceLastActive(state) {
+  const goal = state.profile.dailyGoal
+  for (let i = 1; i <= 30; i++) {
+    const d = new Date(state.today)
+    d.setDate(d.getDate() - i)
+    const key = d.toISOString().slice(0, 10)
+    if ((state.history[key] || 0) >= goal) return i
+  }
+  return 99
 }
 
 // Correlation-ish summary between walking and mood (for coach insight).

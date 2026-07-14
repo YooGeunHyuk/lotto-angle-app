@@ -19,7 +19,12 @@ export default function Onboarding() {
     await requestMotionPermission()
     dispatch({
       type: 'UPDATE_PROFILE',
-      patch: { name: name.trim() || '나', dailyGoal: goal, onboarded: true },
+      patch: {
+        name: name.trim() || '나',
+        dailyGoal: goal,
+        onboarded: true,
+        habitStartDate: new Date().toISOString().slice(0, 10),
+      },
     })
   }
 
