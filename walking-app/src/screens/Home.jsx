@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { useStore, seedDemoHistory } from '../lib/store.jsx'
-import { createPedometer, stepsToKcal, stepsToKm, stepsToMinutes } from '../lib/pedometer.js'
+import { useStore, seedDemoHistory, weekActiveDays, briskMinutes } from '../lib/store.jsx'
+import { createPedometer, stepsToKcal, stepsToKm } from '../lib/pedometer.js'
 import Ring from '../components/Ring.jsx'
 import { IcBolt, IcFire, IcHeart, IcLeaf, IcRoute } from '../components/Icons.jsx'
 
@@ -26,7 +26,9 @@ export default function Home() {
       setWalking(false)
       return
     }
-    const ped = createPedometer({ onStep: (n) => dispatch({ type: 'ADD_STEPS', n }) })
+    const ped = createPedometer({
+      onStep: (n, meta) => dispatch({ type: 'ADD_STEPS', n, brisk: meta?.brisk }),
+    })
     pedRef.current = ped
     await ped.start()
     setWalking(true)
@@ -74,9 +76,12 @@ export default function Home() {
       <div className="grid-2 mt-16">
         <Stat icon={<IcRoute />} color="var(--sky)" label="거리" value={`${stepsToKm(steps).toFixed(2)} km`} />
         <Stat icon={<IcBolt />} color="var(--amber)" label="칼로리" value={`${stepsToKcal(steps, state.profile.weightKg)} kcal`} />
-        <Stat icon={<IcHeart />} color="var(--coral)" label="활동 시간" value={`${stepsToMinutes(steps)} 분`} />
+        <Stat icon={<IcHeart />} color="var(--coral)" label="활기찬 걷기" value={`${briskMinutes(state)} 분`} />
         <Stat icon={<IcLeaf />} color="var(--green-500)" label="씨앗" value={`${state.wallet.seeds}`} />
       </div>
+
+      {/* Weekly active-days goal — consistency-first, health-justified */}
+      <WeekActiveDays state={state} />
 
       {/* Weekly mini chart */}
       <WeeklyBar history={state.history} today={steps} goal={goal} />
@@ -102,6 +107,49 @@ function Stat({ icon, label, value, color }) {
         <span className="muted" style={{ fontSize: 12, color: 'var(--text-2)' }}>{label}</span>
       </div>
       <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em' }}>{value}</div>
+    </div>
+  )
+}
+
+function WeekActiveDays({ state }) {
+  const active = weekActiveDays(state)
+  const target = state.profile.weeklyGoalDays
+  const met = active >= target
+  return (
+    <div className="card mt-16" style={{ borderLeft: '3px solid var(--sky)' }}>
+      <div className="row between" style={{ marginBottom: 10 }}>
+        <div>
+          <div className="eyebrow" style={{ color: 'var(--sky)' }}>이번 주 꾸준함</div>
+          <div style={{ fontWeight: 800, fontSize: 18, marginTop: 4 }}>
+            {active} / {target}일 <span className="muted" style={{ fontWeight: 600, fontSize: 13 }}>활동</span>
+          </div>
+        </div>
+        {met ? (
+          <span className="chip chip-on">주간 목표 달성 ✅</span>
+        ) : (
+          <span className="chip">앞으로 {target - active}일</span>
+        )}
+      </div>
+      <div className="row gap-8" style={{ marginBottom: 10 }}>
+        {Array.from({ length: 7 }).map((_, i) => {
+          const filled = i < active
+          return (
+            <div
+              key={i}
+              style={{
+                flex: 1,
+                height: 10,
+                borderRadius: 999,
+                background: filled ? 'linear-gradient(90deg,#38BDF8,#12B981)' : 'var(--surface-3)',
+              }}
+            />
+          )
+        })}
+      </div>
+      <p className="muted" style={{ fontSize: 12, margin: 0, lineHeight: 1.5 }}>
+        매일 채우지 않아도 괜찮아요. 연구상 <strong style={{ color: 'var(--text)' }}>주 3~4일</strong>만 목표를
+        지켜도 건강 효과 대부분을 얻어요. 완벽보다 꾸준함이에요.
+      </p>
     </div>
   )
 }

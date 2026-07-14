@@ -60,16 +60,21 @@ export default function Profile() {
           <span className="chip chip-on">{state.profile.dailyGoal.toLocaleString()} 보</span>
         </div>
         <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
-          {[5000, 6000, 8000, 10000, 12000].map((g) => (
+          {[4000, 5000, 7000, 8000, 10000].map((g) => (
             <button
               key={g}
               className={'chip' + (state.profile.dailyGoal === g ? ' chip-on' : '')}
               onClick={() => setGoal(g)}
             >
               {g.toLocaleString()}
+              {g === 7000 ? ' ★' : ''}
             </button>
           ))}
         </div>
+        <p className="dim" style={{ fontSize: 11, marginTop: 10, lineHeight: 1.5 }}>
+          ★ 약 7,000보에서 건강 이득 대부분이 나타나요(Lancet Public Health, 2025). 60세 이상은
+          6,000~8,000보로도 충분합니다. 이 정보는 일반적 참고용이며 의학적 조언이 아니에요.
+        </p>
       </div>
 
       {/* Plus paywall */}

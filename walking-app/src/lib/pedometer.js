@@ -31,6 +31,11 @@ export async function requestMotionPermission() {
  * createPedometer({ onStep }) → { start, stop, isSimulated }
  * onStep is called once per detected step.
  */
+// Cadence heuristics (CADENCE-Adults, Tudor-Locke 2020):
+// ~100 steps/min = moderate (3 METs), ~130 = vigorous (6 METs).
+export const CADENCE_MODERATE = 100
+export const CADENCE_VIGOROUS = 130
+
 export function createPedometer({ onStep }) {
   let running = false
   let simTimer = null
@@ -42,6 +47,19 @@ export function createPedometer({ onStep }) {
   let lastPeakAt = 0
   let goingUp = false
   let dynamicThreshold = 11.5 // ~gravity + walking bump (m/s^2 magnitude)
+
+  // Rolling cadence (steps/min) from recent step intervals
+  const stepTimes = []
+  const emitStep = (now) => {
+    stepTimes.push(now)
+    if (stepTimes.length > 6) stepTimes.shift()
+    let cadence = 0
+    if (stepTimes.length >= 3) {
+      const span = stepTimes[stepTimes.length - 1] - stepTimes[0]
+      if (span > 0) cadence = ((stepTimes.length - 1) / span) * 60000
+    }
+    onStep(1, { cadence, brisk: cadence >= CADENCE_MODERATE })
+  }
 
   const handleMotion = (e) => {
     const a = e.accelerationIncludingGravity
@@ -61,7 +79,7 @@ export function createPedometer({ onStep }) {
       // a full up-down cycle → candidate step, debounce ~280ms
       if (now - lastPeakAt > 280) {
         lastPeakAt = now
-        onStep(1)
+        emitStep(now)
       }
     }
   }
@@ -71,7 +89,7 @@ export function createPedometer({ onStep }) {
     // realistic walking: ~110 steps/min = a step every ~545ms, jittered
     const tick = () => {
       if (!running) return
-      onStep(1)
+      emitStep(Date.now())
       const jitter = 480 + Math.floor(seededRandom() * 160)
       simTimer = setTimeout(tick, jitter)
     }

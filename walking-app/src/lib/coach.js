@@ -60,14 +60,21 @@ export function buildInsights(state) {
     }
   }
 
-  // 3) streak coaching
-  if (streak >= 3) {
+  // 3) activity-snack tip around meal times (evidence-based, non-medical)
+  if ((hour >= 12 && hour <= 14) || (hour >= 18 && hour <= 20)) {
     out.push({
-      tone: 'streak',
-      title: `${streak}일 연속 달성 중`,
-      body: `연속 기록이 끊기면 다시 시작하기 어려워요. 오늘 최소 ${Math.round(goal * 0.6).toLocaleString()}보만 지켜도 스트릭 방어가 돼요.`,
+      tone: 'snack',
+      title: '식후 10~15분 걷기',
+      body: '식사 직후 짧게 걷는 게 하루 한 번 몰아 걷기보다 식후 혈당 관리에 더 도움이 돼요. 지금 딱 좋은 타이밍!',
     })
   }
+
+  // 4) consistency coaching (flexible, self-compassionate)
+  out.push({
+    tone: 'consistency',
+    title: '완벽보다 꾸준함',
+    body: '매일 채우지 않아도 괜찮아요. 주 3~4일만 목표를 지켜도 건강 이득 대부분을 얻어요. 오늘 쉬어도 내일 다시 시작하면 돼요.',
+  })
 
   return out
 }
@@ -77,6 +84,9 @@ export function coachReply(question, state) {
   const goal = state.profile.dailyGoal
   if (q.includes('무릎') || q.includes('아파') || q.includes('통증')) {
     return '통증이 있으면 무리는 금물이에요. 오늘은 평지에서 천천히, 15분 이내로만 걷고 목표를 60%로 낮춰 드릴게요. 통증이 지속되면 전문가 상담을 권합니다.'
+  }
+  if (q.includes('혈당') || q.includes('식후') || q.includes('당뇨')) {
+    return '식사 직후 10~15분 가볍게 걸어보세요. 한 연구에서 식후 15분씩 세 번 걷기가 하루 한 번 몰아 걷기보다 식후 혈당을 더 잘 낮췄어요. 특히 저녁 식후가 효과적입니다. (일반적 참고용이며 의학적 조언은 아니에요.)'
   }
   if (q.includes('살') || q.includes('체중') || q.includes('다이어트')) {
     return `체중 관리에는 "매일 조금씩"이 핵심이에요. 현재 목표 ${goal.toLocaleString()}보를 유지하며 식후 10분 산책을 더하면 혈당·체지방 관리에 효과적입니다.`

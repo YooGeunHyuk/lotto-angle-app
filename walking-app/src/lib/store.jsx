@@ -13,12 +13,15 @@ const initial = {
   profile: {
     name: '나',
     weightKg: 65,
-    dailyGoal: 8000,
+    dailyGoal: 7000, // health-based default (Lancet Public Health 2025), not the 10k myth
+    weeklyGoalDays: 4, // JAMA Netw Open 2023: benefit plateaus at 3–4 active days/week
+    ageBand: null, // '<60' | '60+' — personalizes the goal ceiling
     onboarded: false,
     plan: 'free', // 'free' | 'plus'
   },
   today: todayKey(),
   stepsToday: 0,
+  briskToday: 0, // steps taken at moderate+ cadence (≥100 spm)
   history: {}, // { 'YYYY-MM-DD': steps }
   streak: 0,
   wallet: { seeds: 0 }, // "씨앗" — non-cash internal currency
@@ -35,16 +38,16 @@ function reducer(state, action) {
     case 'HYDRATE':
       return { ...state, ...action.payload }
     case 'ROLLOVER': {
-      // new day: archive yesterday, reset today, update streak
+      // new day: archive yesterday, reset today. Streak is computed
+      // flexibly elsewhere (weekly active days), so we don't hard-reset it here.
       const y = state.today
       const history = { ...state.history, [y]: state.stepsToday }
-      const met = state.stepsToday >= state.profile.dailyGoal
       return {
         ...state,
         history,
         today: action.today,
         stepsToday: 0,
-        streak: met ? state.streak : 0,
+        briskToday: 0,
       }
     }
     case 'ADD_STEPS': {
@@ -54,6 +57,7 @@ function reducer(state, action) {
       return {
         ...state,
         stepsToday,
+        briskToday: state.briskToday + (action.brisk ? action.n : 0),
         streak: crossedGoal ? state.streak + 1 : state.streak,
         wallet: { ...state.wallet, seeds: state.wallet.seeds + (crossedGoal ? 50 : 0) },
       }
@@ -163,6 +167,27 @@ export function seedDemoHistory(dispatch, state) {
     moods[key] = Math.max(1, Math.min(5, Math.round(base + (rnd() - 0.5))))
   }
   dispatch({ type: 'HYDRATE', payload: { history, moods } })
+}
+
+// Active days in the last 7 (incl. today) that met the daily goal.
+// This is the consistency-first metric: JAMA Netw Open 2023 shows meaningful
+// mortality benefit from even 1–2 goal days/week, plateauing at 3–4.
+export function weekActiveDays(state) {
+  let count = 0
+  const goal = state.profile.dailyGoal
+  for (let i = 0; i < 7; i++) {
+    const d = new Date()
+    d.setDate(d.getDate() - i)
+    const key = d.toISOString().slice(0, 10)
+    const steps = i === 0 ? state.stepsToday : state.history[key] || 0
+    if (steps >= goal) count++
+  }
+  return count
+}
+
+// Brisk (moderate-intensity) walking minutes today, from brisk step count.
+export function briskMinutes(state) {
+  return Math.round(state.briskToday / 110)
 }
 
 // Correlation-ish summary between walking and mood (for coach insight).

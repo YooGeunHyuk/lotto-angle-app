@@ -78,13 +78,14 @@ export default function Onboarding() {
           <div className="eyebrow">2 / 2</div>
           <h1 style={{ fontSize: 26, marginTop: 8 }}>하루 목표를 정해요</h1>
           <p className="muted" style={{ fontSize: 13, marginTop: 6 }}>
-            나중에 코치가 컨디션에 맞게 조정을 제안할 거예요.
+            '만보'는 마케팅에서 온 숫자예요. 연구상 <strong style={{ color: 'var(--text)' }}>하루 약 7,000보</strong>면
+            건강 이득 대부분을 얻어요. 코치가 컨디션에 맞게 조정도 도와드려요.
           </p>
           <div className="col gap-12 mt-24">
             {[
-              [6000, '가볍게 시작', '약 4.4km · 55분'],
-              [8000, '건강 유지 (추천)', '약 5.9km · 73분'],
-              [10000, '적극적으로', '약 7.4km · 91분'],
+              [5000, '가볍게 시작', '거의 안 걷다가 늘리면 효과가 가장 큼'],
+              [7000, '건강 기준 (추천)', '사망률·심혈관 위험 크게 감소하는 구간'],
+              [10000, '적극적으로', '더 활동적인 사람을 위한 목표'],
             ].map(([g, label, sub]) => (
               <button
                 key={g}
