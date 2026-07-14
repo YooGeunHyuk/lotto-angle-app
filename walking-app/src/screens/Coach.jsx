@@ -5,9 +5,10 @@ import {
   seedDemoHistory,
   habitDay,
   HABIT_TARGET_DAYS,
+  suggestGoalAdjustment,
 } from '../lib/store.jsx'
 import { buildInsights, coachReply } from '../lib/coach.js'
-import { IcCheck, IcHeart, IcRoute, IcSpark } from '../components/Icons.jsx'
+import { IcCheck, IcHeart, IcLeaf, IcRoute, IcSpark } from '../components/Icons.jsx'
 
 const CUES = ['아침에 일어나면', '점심 먹고 나면', '퇴근 지하철에서 내리면', '저녁 먹고 나면', '커피 마시고 나면']
 const ACTIONS = ['10분 걷기', '집 앞 한 바퀴', '한 정거장 걸어가기', '동네 공원까지 걷기']
@@ -56,6 +57,9 @@ export default function Coach() {
 
       {/* Habit progress — realistic 66-day horizon (counters the 21-day myth) */}
       <HabitProgress state={state} />
+
+      {/* Smart, safe goal adjustment — 10%/week rule */}
+      <SafeGoalAdjust state={state} dispatch={dispatch} />
 
       {/* If-then walk plan — implementation intention + habit stacking */}
       <WalkPlan state={state} dispatch={dispatch} />
@@ -172,6 +176,9 @@ export default function Coach() {
         </div>
       </div>
 
+      {/* Safe-walking guidance — non-medical, for beginners & older adults */}
+      <SafeWalkGuide />
+
       <div className="card mt-16" style={{ background: 'var(--surface-2)' }}>
         <div className="row between">
           <div>
@@ -182,6 +189,69 @@ export default function Coach() {
         </div>
       </div>
     </div>
+  )
+}
+
+function SafeGoalAdjust({ state, dispatch }) {
+  const s = suggestGoalAdjustment(state)
+  if (s.type === 'hold') return null
+  const up = s.type === 'increase'
+  const color = up ? 'var(--green-500)' : 'var(--amber)'
+  return (
+    <div className="card" style={{ marginBottom: 12, borderLeft: `3px solid ${color}` }}>
+      <div className="row gap-8" style={{ color, marginBottom: 6 }}>
+        <IcRoute style={{ width: 18, height: 18 }} />
+        <strong style={{ fontSize: 14 }}>{up ? '목표를 안전하게 올려볼까요?' : '목표를 조금 낮춰볼까요?'}</strong>
+      </div>
+      <p className="muted" style={{ fontSize: 13, margin: '0 0 12px', lineHeight: 1.5 }}>{s.reason}</p>
+      <div className="row gap-8" style={{ alignItems: 'center' }}>
+        <span className="chip">{state.profile.dailyGoal.toLocaleString()}</span>
+        <span className="dim">→</span>
+        <span className="chip chip-on">{s.to.toLocaleString()} 보</span>
+        <button
+          className="btn btn-primary"
+          style={{ marginLeft: 'auto', padding: '9px 16px' }}
+          onClick={() => dispatch({ type: 'UPDATE_PROFILE', patch: { dailyGoal: s.to } })}
+        >
+          적용
+        </button>
+      </div>
+    </div>
+  )
+}
+
+const SAFE_TIPS = [
+  '시작은 짧게 — 하루 5~15분, 주 2~3회면 충분해요. 부상·심장 위험이 낮은 안전한 출발점이에요.',
+  '늘릴 땐 주당 10% 이내로. 너무 빨리 늘리면 과사용 부상 위험이 커져요.',
+  '걷기 전 가벼운 준비운동, 편한 신발. 통증이 생기면 멈추고 쉬어요.',
+  '숨이 약간 찰 정도(대화는 가능한 강도)가 딱 좋아요.',
+]
+
+function SafeWalkGuide() {
+  return (
+    <details className="card mt-16" style={{ padding: 0 }}>
+      <summary
+        style={{ listStyle: 'none', padding: 16, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+      >
+        <span className="row gap-8" style={{ color: 'var(--sky)' }}>
+          <IcLeaf style={{ width: 18, height: 18 }} /> <strong style={{ fontSize: 14 }}>안전하게 걷기 가이드</strong>
+        </span>
+        <span className="dim" style={{ fontSize: 12 }}>펼치기</span>
+      </summary>
+      <div style={{ padding: '0 16px 16px' }}>
+        <div className="col gap-8">
+          {SAFE_TIPS.map((t, i) => (
+            <div key={i} className="row gap-8" style={{ alignItems: 'flex-start' }}>
+              <span style={{ color: 'var(--green-500)', marginTop: 1 }}><IcCheck style={{ width: 16, height: 16 }} /></span>
+              <span style={{ fontSize: 13, lineHeight: 1.5 }}>{t}</span>
+            </div>
+          ))}
+        </div>
+        <p className="dim" style={{ fontSize: 11, marginTop: 12, lineHeight: 1.5 }}>
+          이 안내는 일반적 참고용이며 의학적 조언이 아니에요. 지병이 있거나 통증이 지속되면 전문가와 상담하세요.
+        </p>
+      </div>
+    </details>
   )
 }
 

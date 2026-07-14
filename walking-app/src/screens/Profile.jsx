@@ -72,6 +72,18 @@ export default function Profile() {
           <strong style={{ fontSize: 14 }}>일일 목표</strong>
           <span className="chip chip-on">{state.profile.dailyGoal.toLocaleString()} 보</span>
         </div>
+        <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 6 }}>연령대 (안전한 목표 상한 개인화)</div>
+        <div className="row gap-8" style={{ flexWrap: 'wrap', marginBottom: 14 }}>
+          {[['<60', '60세 미만'], ['60+', '60세 이상']].map(([band, label]) => (
+            <button
+              key={band}
+              className={'chip' + (state.profile.ageBand === band ? ' chip-on' : '')}
+              onClick={() => dispatch({ type: 'UPDATE_PROFILE', patch: { ageBand: band } })}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
           {[4000, 5000, 7000, 8000, 10000].map((g) => (
             <button

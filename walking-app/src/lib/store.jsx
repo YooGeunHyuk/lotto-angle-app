@@ -254,6 +254,62 @@ export function daysSinceLastActive(state) {
   return 99
 }
 
+// Average daily steps over the last N days that have data.
+export function avgSteps(state, days = 14) {
+  const vals = []
+  for (let i = 1; i <= days; i++) {
+    const d = new Date(state.today)
+    d.setDate(d.getDate() - i)
+    const v = state.history[d.toISOString().slice(0, 10)]
+    if (v != null) vals.push(v)
+  }
+  if (!vals.length) return 0
+  return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length)
+}
+
+// Age-personalized safe ceiling (Paluch, Lancet PH 2022): 60+ plateaus at
+// 6–8k, under-60 at 8–10k. Never push a goal above this.
+export function goalCeiling(state) {
+  return state.profile.ageBand === '60+' ? 8000 : 10000
+}
+export const GOAL_FLOOR = 4000
+const round500 = (n) => Math.round(n / 500) * 500
+
+// Safe, evidence-based next-goal suggestion. Increases follow the ~10%/week
+// rule (>10%/wk ≈ 1.6× overuse-injury risk); decreases are gentle and
+// self-compassionate, never below a low-risk floor.
+export function suggestGoalAdjustment(state) {
+  const goal = state.profile.dailyGoal
+  const avg = avgSteps(state)
+  const ceiling = goalCeiling(state)
+  const consistent = weekActiveDays(state) >= state.profile.weeklyGoalDays
+  if (avg === 0) return { type: 'hold' }
+
+  // comfortably beating goal & consistent → gentle +10% step up
+  if (avg >= goal * 1.05 && consistent && goal < ceiling) {
+    const to = Math.min(ceiling, round500(goal * 1.1))
+    if (to > goal) {
+      return {
+        type: 'increase',
+        to,
+        reason: `요즘 평균 ${avg.toLocaleString()}보로 목표를 넉넉히 넘고 있어요. 부상 없이 안전하게, 주당 10%씩만 올려봐요.`,
+      }
+    }
+  }
+  // struggling well below goal → suggest a kinder, safer target
+  if (avg < goal * 0.7) {
+    const to = Math.max(GOAL_FLOOR, round500(avg))
+    if (to < goal) {
+      return {
+        type: 'decrease',
+        to,
+        reason: `목표가 조금 버거워 보여요. ${to.toLocaleString()}보로 낮춰 '매일 성공'을 먼저 쌓아요. 익숙해지면 다시 올리면 돼요.`,
+      }
+    }
+  }
+  return { type: 'hold' }
+}
+
 // Correlation-ish summary between walking and mood (for coach insight).
 export function walkMoodSummary(state) {
   const days = Object.keys(state.moods)
