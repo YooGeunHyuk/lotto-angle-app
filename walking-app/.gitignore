@@ -4,3 +4,5 @@ dev-dist
 *.log
 dist-demo
 artifact.html
+.env
+.env.local

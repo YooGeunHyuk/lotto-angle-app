@@ -34,6 +34,7 @@ const initial = {
   donations: { totalMeters: 0, campaignId: null },
   buddies: [],
   moods: {}, // { 'YYYY-MM-DD': score 1..5 } — walk↔mood link (mental health)
+  reviews: {}, // { [placeName]: [{ rating, text, date }] } — our own review moat
   settings: { sound: true, haptics: true },
 }
 
@@ -95,6 +96,13 @@ function reducer(state, action) {
       return { ...state, moods: { ...state.moods, [action.day || state.today]: action.score } }
     case 'SET_WALK_PLAN':
       return { ...state, walkPlan: { ...state.walkPlan, ...action.patch } }
+    case 'ADD_REVIEW': {
+      const list = state.reviews[action.place] || []
+      return {
+        ...state,
+        reviews: { ...state.reviews, [action.place]: [action.review, ...list] },
+      }
+    }
     case 'RESET':
       return { ...initial, profile: { ...initial.profile, onboarded: false } }
     default:

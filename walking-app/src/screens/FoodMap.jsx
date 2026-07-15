@@ -1,12 +1,15 @@
 import { useState } from 'react'
 import { useStore } from '../lib/store.jsx'
+import KakaoMap from '../components/KakaoMap.jsx'
 import { IcPin, IcRoute } from '../components/Icons.jsx'
 
 /* 맛집 지도 — walking × food discovery.
-   The map/data here is DEMO. In production, restaurant data comes from official
-   APIs (Kakao Local / Naver Search / Google Places / 공공데이터), each source is
-   attributed and links out (esp. CatchTable, which has no public API). See
-   FOODMAP.md for the real, ToS-compliant architecture. */
+   Map is REAL Kakao Maps when VITE_KAKAO_MAP_KEY is set (falls back to a mock
+   under the offline artifact CSP). Restaurant list is demo data; production
+   pulls from official APIs + link-out (see FOODMAP.md). Reviews are our own,
+   stored on-device — the long-term data moat. */
+
+const CENTER = { lat: 37.5445, lng: 127.0559 } // 성수동
 
 const SOURCES = {
   kakao: { label: '카카오맵', color: '#FBBF24' },
@@ -25,11 +28,17 @@ const PLACES = [
   { name: '수제버거 서울숲', cat: '양식', rating: 4.6, steps: 1450, min: 11, x: 64, y: 74, src: ['catch', 'kakao', 'blog'], catchable: true },
 ]
 
+const COURSES = [
+  { id: 'cafe', emoji: '☕', name: '성수 카페 산책', stops: ['언더프레셔 커피', '대림창고 베이커리', '서울숲'], km: 2.4, min: 32, steps: 3200 },
+  { id: 'gourmet', emoji: '🍚', name: '뚝섬 미식 코스', stops: ['성수동 손칼국수', '미도인 성수', '뚝섬 갈비'], km: 3.1, min: 41, steps: 4200 },
+]
+
 const CATS = ['전체', '한식', '카페', '일식', '양식']
 const SRC_FILTERS = ['전체', ...Object.keys(SOURCES)]
 
 export default function FoodMap() {
   const { state } = useStore()
+  const [view, setView] = useState('map')
   const [cat, setCat] = useState('전체')
   const [src, setSrc] = useState('전체')
   const [active, setActive] = useState(null)
@@ -46,108 +55,197 @@ export default function FoodMap() {
           </div>
           <span className="chip" style={{ padding: '2px 8px', fontSize: 10 }}>데모</span>
         </div>
-        <p className="muted" style={{ fontSize: 13, marginTop: 4 }}>
-          네이버·카카오맵·블로그·캐치테이블 맛집을 한 지도에. 걸어서 갈 만한 곳을 골라요.
-        </p>
       </header>
 
-      {/* Stylized map (demo) */}
-      <div
-        className="card"
-        style={{ padding: 0, overflow: 'hidden', position: 'relative', height: 240, border: '1px solid var(--border)' }}
-      >
-        <MockMap places={list} active={active} onPick={setActive} />
-        <div style={{ position: 'absolute', left: 10, top: 10 }} className="chip">🚶 현재 위치 · 성수동</div>
+      {/* view toggle */}
+      <div className="row gap-8" style={{ marginBottom: 12 }}>
+        <button className={'chip' + (view === 'map' ? ' chip-on' : '')} onClick={() => setView('map')}>🗺️ 맛집 지도</button>
+        <button className={'chip' + (view === 'course' ? ' chip-on' : '')} onClick={() => setView('course')}>🚶 미식 산책 코스</button>
       </div>
 
-      {/* Source filter */}
-      <div style={{ display: 'flex', gap: 8, overflowX: 'auto', marginTop: 12, paddingBottom: 2 }}>
-        {SRC_FILTERS.map((s) => (
-          <button
-            key={s}
-            className={'chip' + (src === s ? ' chip-on' : '')}
-            style={{ flex: '0 0 auto' }}
-            onClick={() => setSrc(s)}
-          >
-            {s === '전체' ? '전체 출처' : SOURCES[s].label}
-          </button>
-        ))}
-      </div>
-      {/* Category filter */}
-      <div style={{ display: 'flex', gap: 8, overflowX: 'auto', marginTop: 8, paddingBottom: 2 }}>
-        {CATS.map((c) => (
-          <button key={c} className={'chip' + (cat === c ? ' chip-on' : '')} style={{ flex: '0 0 auto' }} onClick={() => setCat(c)}>
-            {c}
-          </button>
-        ))}
-      </div>
-
-      {/* List */}
-      <div className="col gap-12" style={{ marginTop: 14 }}>
-        {list.map((p) => (
-          <div
-            key={p.name}
-            className={'card' + (active === p.name ? ' card-glow' : '')}
-            onClick={() => setActive(p.name)}
-          >
-            <div className="row between">
-              <div>
-                <strong>{p.name}</strong>
-                <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
-                  {p.cat} · ⭐ {p.rating} · 도보 {p.min}분 (약 {p.steps.toLocaleString()}걸음)
-                </div>
-              </div>
-              <div style={{ fontSize: 22 }}>{catEmoji(p.cat)}</div>
-            </div>
-            {/* source badges */}
-            <div className="row gap-8" style={{ marginTop: 10, flexWrap: 'wrap' }}>
-              {p.src.map((s) => (
-                <span
-                  key={s}
-                  className="chip"
-                  style={{ padding: '3px 9px', fontSize: 10.5, color: SOURCES[s].color, borderColor: `${SOURCES[s].color}55` }}
-                >
-                  {SOURCES[s].label}
-                </span>
-              ))}
-            </div>
-            <div className="row gap-8 mt-12">
-              <button className="btn btn-primary" style={{ flex: 1, padding: '10px' }}>
-                <IcRoute style={{ width: 16, height: 16 }} /> 걸어가기
-              </button>
-              {p.catchable ? (
-                <button className="btn btn-ghost" style={{ flex: 1, padding: '10px', color: 'var(--coral)' }}>
-                  캐치테이블 예약 ↗
-                </button>
-              ) : (
-                <button className="btn btn-ghost" style={{ flex: 1, padding: '10px' }}>
-                  지도앱에서 열기 ↗
-                </button>
-              )}
-            </div>
+      {view === 'map' ? (
+        <>
+          {/* Map: real Kakao when keyed, else mock */}
+          <div className="card" style={{ padding: 0, overflow: 'hidden', position: 'relative', height: 240 }}>
+            <KakaoMap
+              center={CENTER}
+              keyword="성수동 맛집"
+              fallback={<MockMap places={list} active={active} onPick={setActive} />}
+            />
+            <div style={{ position: 'absolute', left: 10, top: 10, zIndex: 5 }} className="chip">🚶 현재 위치 · 성수동</div>
           </div>
-        ))}
-      </div>
 
-      {/* Walking integration */}
+          {/* filters */}
+          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', marginTop: 12, paddingBottom: 2 }}>
+            {SRC_FILTERS.map((s) => (
+              <button key={s} className={'chip' + (src === s ? ' chip-on' : '')} style={{ flex: '0 0 auto' }} onClick={() => setSrc(s)}>
+                {s === '전체' ? '전체 출처' : SOURCES[s].label}
+              </button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', marginTop: 8, paddingBottom: 2 }}>
+            {CATS.map((c) => (
+              <button key={c} className={'chip' + (cat === c ? ' chip-on' : '')} style={{ flex: '0 0 auto' }} onClick={() => setCat(c)}>{c}</button>
+            ))}
+          </div>
+
+          {/* list */}
+          <div className="col gap-12" style={{ marginTop: 14 }}>
+            {list.map((p) => (
+              <PlaceCard key={p.name} p={p} active={active === p.name} onPick={() => setActive(p.name)} />
+            ))}
+          </div>
+
+          {/* honest data note */}
+          <div className="card mt-16" style={{ background: 'var(--surface-2)' }}>
+            <strong style={{ fontSize: 13 }}>이 지도의 맛집 정보는 어디서 오나요?</strong>
+            <p className="muted" style={{ fontSize: 12, marginTop: 6, lineHeight: 1.6 }}>
+              지도는 <strong>카카오맵 실연동</strong>(키 설정 시 실제 지도·검색, 미설정 시 데모 지도)이에요. 목록은 데모 데이터고,
+              정식 버전은 <strong>공공데이터·카카오 로컬·구글 Places</strong>로 전국 맛집을 불러오고 블로그·캐치테이블은
+              <strong>출처 표시 + 링크아웃</strong>으로 연결해요(무단 스크래핑 없음). 자세히: FOODMAP.md
+            </p>
+          </div>
+        </>
+      ) : (
+        <CourseView state={state} />
+      )}
+
+      {/* Walking integration (always visible) */}
       <div className="card mt-16" style={{ borderLeft: '3px solid var(--amber)' }}>
         <div className="row gap-8" style={{ color: 'var(--amber)', marginBottom: 6 }}>
           <IcPin style={{ width: 18, height: 18 }} />
           <strong style={{ fontSize: 14 }}>맛집까지 걸어가기 챌린지</strong>
         </div>
         <p className="muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.5 }}>
-          차 대신 걸어서 맛집에 도착하면 <strong style={{ color: 'var(--text)' }}>성취 배지</strong>와 나무 성장! 오늘
-          {' '}{Math.max(0, 7000 - state.stepsToday).toLocaleString()}걸음이면 근처 맛집 두세 곳은 돌아볼 수 있어요.
+          차 대신 걸어서 도착하면 <strong style={{ color: 'var(--text)' }}>성취 배지</strong>와 나무 성장! 방문 후
+          리뷰를 남기면 다음 사람에게 도움이 돼요.
         </p>
       </div>
+    </div>
+  )
+}
 
-      {/* Honest data-source note */}
-      <div className="card mt-16" style={{ background: 'var(--surface-2)' }}>
-        <strong style={{ fontSize: 13 }}>이 지도의 맛집 정보는 어디서 오나요?</strong>
-        <p className="muted" style={{ fontSize: 12, marginTop: 6, lineHeight: 1.6 }}>
-          지금은 <strong>데모 데이터</strong>예요. 정식 버전은 <strong>카카오 로컬·네이버 검색·구글 Places·공공데이터</strong>
-          {' '}공식 API로 전국 맛집을 불러오고, 블로그·캐치테이블 등은 <strong>출처 표시 + 링크아웃</strong>으로 연결해요
-          (무단 스크래핑·재배포는 하지 않아요). 자세한 구조는 FOODMAP.md 참고.
+function PlaceCard({ p, active, onPick }) {
+  const { state, dispatch } = useStore()
+  const [open, setOpen] = useState(false)
+  const myReviews = state.reviews[p.name] || []
+
+  return (
+    <div className={'card' + (active ? ' card-glow' : '')} onClick={onPick}>
+      <div className="row between">
+        <div>
+          <strong>{p.name}</strong>
+          <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
+            {p.cat} · ⭐ {p.rating} · 도보 {p.min}분 (약 {p.steps.toLocaleString()}걸음)
+          </div>
+        </div>
+        <div style={{ fontSize: 22 }}>{catEmoji(p.cat)}</div>
+      </div>
+      <div className="row gap-8" style={{ marginTop: 10, flexWrap: 'wrap' }}>
+        {p.src.map((s) => (
+          <span key={s} className="chip" style={{ padding: '3px 9px', fontSize: 10.5, color: SOURCES[s].color, borderColor: `${SOURCES[s].color}55` }}>
+            {SOURCES[s].label}
+          </span>
+        ))}
+      </div>
+      <div className="row gap-8 mt-12">
+        <button className="btn btn-primary" style={{ flex: 1, padding: '10px' }}><IcRoute style={{ width: 16, height: 16 }} /> 걸어가기</button>
+        {p.catchable ? (
+          <button className="btn btn-ghost" style={{ flex: 1, padding: '10px', color: 'var(--coral)' }}>캐치테이블 예약 ↗</button>
+        ) : (
+          <button className="btn btn-ghost" style={{ flex: 1, padding: '10px' }}>지도앱에서 열기 ↗</button>
+        )}
+      </div>
+      {/* our own reviews */}
+      <button
+        className="btn btn-ghost btn-block mt-8"
+        style={{ padding: '9px', fontSize: 13 }}
+        onClick={(e) => { e.stopPropagation(); setOpen((o) => !o) }}
+      >
+        ✍️ 걷고 나서 리뷰 {myReviews.length > 0 ? `(${myReviews.length})` : '쓰기'}
+      </button>
+      {open && <ReviewBlock place={p.name} reviews={myReviews} dispatch={dispatch} today={state.today} />}
+    </div>
+  )
+}
+
+function ReviewBlock({ place, reviews, dispatch, today }) {
+  const [rating, setRating] = useState(5)
+  const [text, setText] = useState('')
+  const submit = (e) => {
+    e.stopPropagation()
+    if (!text.trim()) return
+    dispatch({ type: 'ADD_REVIEW', place, review: { rating, text: text.trim(), date: today } })
+    setText('')
+  }
+  return (
+    <div onClick={(e) => e.stopPropagation()} style={{ marginTop: 10, padding: 12, borderRadius: 14, background: 'var(--surface-2)' }}>
+      <div className="row gap-8" style={{ marginBottom: 8 }}>
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button key={n} onClick={() => setRating(n)} style={{ fontSize: 20, opacity: n <= rating ? 1 : 0.3 }}>⭐</button>
+        ))}
+      </div>
+      <div className="row gap-8">
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="걸어가서 먹어본 솔직 후기…"
+          style={{ flex: 1, padding: '10px 12px', borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: 13, outline: 'none' }}
+        />
+        <button className="btn btn-primary" style={{ padding: '10px 14px' }} onClick={submit}>등록</button>
+      </div>
+      {reviews.length > 0 && (
+        <div className="col gap-8" style={{ marginTop: 12 }}>
+          {reviews.map((r, i) => (
+            <div key={i} style={{ fontSize: 12.5, lineHeight: 1.5 }}>
+              <span style={{ color: 'var(--amber)' }}>{'⭐'.repeat(r.rating)}</span> <span className="muted">{r.text}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <p className="dim" style={{ fontSize: 10.5, marginTop: 10 }}>내 리뷰는 이 기기에 저장돼요. 정식 버전에선 걷기 유저들의 리뷰가 모여 우리만의 맛집 데이터가 됩니다.</p>
+    </div>
+  )
+}
+
+function CourseView({ state }) {
+  const remaining = Math.max(0, state.profile.dailyGoal - state.stepsToday)
+  return (
+    <div className="col gap-12">
+      <p className="muted" style={{ fontSize: 13, margin: '0 0 2px' }}>맛집을 잇는 도보 코스. 걸으며 미식을 즐기고 목표도 채워요.</p>
+      {COURSES.map((c) => (
+        <div key={c.id} className="card">
+          <div className="row between">
+            <div className="row gap-12">
+              <span style={{ fontSize: 26 }}>{c.emoji}</span>
+              <div>
+                <strong>{c.name}</strong>
+                <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>{c.km}km · {c.min}분 · 약 {c.steps.toLocaleString()}걸음</div>
+              </div>
+            </div>
+            <span className="chip chip-on">{c.stops.length}곳</span>
+          </div>
+          {/* stops as a path */}
+          <div className="row" style={{ marginTop: 12, flexWrap: 'wrap', alignItems: 'center', gap: 4 }}>
+            {c.stops.map((s, i) => (
+              <span key={s} className="row" style={{ alignItems: 'center', gap: 4 }}>
+                <span className="chip" style={{ padding: '4px 10px', fontSize: 11 }}>{s}</span>
+                {i < c.stops.length - 1 && <span className="dim">→</span>}
+              </span>
+            ))}
+          </div>
+          <div className="row between mt-12" style={{ alignItems: 'center' }}>
+            <span className="muted" style={{ fontSize: 12 }}>
+              {c.steps <= remaining ? '오늘 목표 안에서 완주 가능!' : `목표까지 ${remaining.toLocaleString()}걸음 남음`}
+            </span>
+            <button className="btn btn-primary" style={{ padding: '10px 16px' }}>코스 시작</button>
+          </div>
+        </div>
+      ))}
+      <div className="card" style={{ background: 'var(--surface-2)' }}>
+        <p className="muted" style={{ fontSize: 12, margin: 0, lineHeight: 1.6 }}>
+          정식 버전에선 <strong>보행자 경로 API</strong>로 실제 도보 길안내를 제공하고, 완주 시 <strong>코스 배지</strong>를
+          드려요. 코스는 우리 큐레이션 + 유저가 만든 코스로 지역마다 늘어나요.
         </p>
       </div>
     </div>
@@ -157,22 +255,13 @@ export default function FoodMap() {
 function MockMap({ places, active, onPick }) {
   return (
     <svg viewBox="0 0 100 66" preserveAspectRatio="xMidYMid slice" style={{ width: '100%', height: '100%', display: 'block', background: '#0E141C' }}>
-      {/* subtle blocks */}
       <rect x="0" y="0" width="100" height="66" fill="#0E141C" />
-      {[14, 34, 54, 74].map((x) => (
-        <rect key={'v' + x} x={x} y="0" width="8" height="66" fill="#131B24" />
-      ))}
-      {[16, 40].map((y) => (
-        <rect key={'h' + y} x="0" y={y} width="100" height="7" fill="#131B24" />
-      ))}
-      {/* river */}
+      {[14, 34, 54, 74].map((x) => <rect key={'v' + x} x={x} y="0" width="8" height="66" fill="#131B24" />)}
+      {[16, 40].map((y) => <rect key={'h' + y} x="0" y={y} width="100" height="7" fill="#131B24" />)}
       <path d="M0 58 Q 30 50 55 56 T 100 52 L100 66 L0 66 Z" fill="#12324a" opacity="0.6" />
-      {/* walking route (dashed) */}
       <path d="M50 50 L46 62 M50 50 L58 28 M50 50 L32 40" stroke="#12B981" strokeWidth="0.8" strokeDasharray="2 1.5" fill="none" opacity="0.7" />
-      {/* current location */}
       <circle cx="50" cy="50" r="2.4" fill="#12B981" />
       <circle cx="50" cy="50" r="4.2" fill="none" stroke="#12B981" strokeWidth="0.5" opacity="0.5" />
-      {/* pins */}
       {places.map((p) => {
         const on = active === p.name
         return (
