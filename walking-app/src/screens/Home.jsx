@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { useStore, seedDemoHistory, weekActiveDays, briskMinutes, flexibleStreak } from '../lib/store.jsx'
+import {
+  useStore,
+  seedDemoHistory,
+  weekActiveDays,
+  briskMinutes,
+  flexibleStreak,
+  treeStage,
+} from '../lib/store.jsx'
 import { createPedometer, stepsToKcal, stepsToKm } from '../lib/pedometer.js'
 import Ring from '../components/Ring.jsx'
 import { IcBolt, IcFire, IcHeart, IcLeaf, IcRoute } from '../components/Icons.jsx'
@@ -8,6 +15,7 @@ export default function Home() {
   const { state, dispatch } = useStore()
   const [walking, setWalking] = useState(false)
   const [sim, setSim] = useState(false)
+  const [showCard, setShowCard] = useState(false)
   const pedRef = useRef(null)
 
   useEffect(() => {
@@ -47,7 +55,7 @@ export default function Home() {
           <div className="eyebrow">STRIDE</div>
           <h2>{greeting()}, {state.profile.name}님</h2>
         </div>
-        <div className="chip chip-on"><IcFire style={{ width: 14, height: 14 }} /> {flexibleStreak(state)}일 꾸준</div>
+        <div className="chip chip-on"><IcFire style={{ width: 14, height: 14 }} /> {flexibleStreak(state)}일째 걷는 사람</div>
       </header>
 
       {/* Step ring */}
@@ -58,19 +66,28 @@ export default function Home() {
           {remaining > 0 ? (
             <div className="dim" style={{ fontSize: 12, marginTop: 6 }}>{remaining.toLocaleString()} 걸음 더!</div>
           ) : (
-            <div className="chip chip-on" style={{ marginTop: 8 }}>목표 달성 🎉</div>
+            <div className="chip chip-on" style={{ marginTop: 8 }}>오운완 · 오늘 목표 달성 🎉</div>
           )}
         </Ring>
 
-        <button className={'btn btn-block mt-16 ' + (walking ? 'btn-ghost' : 'btn-primary')} onClick={toggleWalk}>
-          {walking ? '■ 걷기 세션 종료' : '▶ 걷기 세션 시작'}
-        </button>
+        {remaining === 0 ? (
+          <button className="btn btn-primary btn-block mt-16" onClick={() => setShowCard(true)}>
+            🏅 오운완 카드 만들기
+          </button>
+        ) : (
+          <button className={'btn btn-block mt-16 ' + (walking ? 'btn-ghost' : 'btn-primary')} onClick={toggleWalk}>
+            {walking ? '■ 걷기 세션 종료' : '▶ 걷기 세션 시작'}
+          </button>
+        )}
         {walking && (
           <div className="dim" style={{ fontSize: 11, marginTop: 8 }}>
             {sim ? '미리보기 모드: 걸음을 시뮬레이션합니다' : '가속도계로 걸음을 측정 중…'}
           </div>
         )}
       </div>
+
+      {/* 나의 나무 — care/growth mechanic (non-monetary intrinsic reward) */}
+      <MyTree state={state} />
 
       {/* Quick stats */}
       <div className="grid-2 mt-16">
@@ -113,6 +130,129 @@ export default function Home() {
             실제 이체는 일어나지 않아요. (자세히: REWARDS.md)
           </p>
         </details>
+      </div>
+
+      {showCard && (
+        <OwoonwanCard state={state} steps={steps} onClose={() => setShowCard(false)} />
+      )}
+    </div>
+  )
+}
+
+function MyTree({ state }) {
+  const t = treeStage(state)
+  return (
+    <div className="card mt-16" style={{ borderLeft: '3px solid var(--green-500)' }}>
+      <div className="row gap-16" style={{ alignItems: 'center' }}>
+        <div
+          style={{
+            width: 68,
+            height: 68,
+            borderRadius: 18,
+            background: 'radial-gradient(circle at 50% 40%, rgba(18,185,129,0.22), rgba(18,185,129,0.05))',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 38,
+            flexShrink: 0,
+          }}
+        >
+          {t.emoji}
+        </div>
+        <div style={{ flex: 1 }}>
+          <div className="row between">
+            <strong style={{ fontSize: 15 }}>나의 나무 · {t.name}</strong>
+            <span className="chip chip-on">{t.days}일 키움</span>
+          </div>
+          <div style={{ marginTop: 8, height: 8, borderRadius: 999, background: 'var(--surface-3)' }}>
+            <div
+              style={{
+                width: `${Math.min(100, t.progress * 100)}%`,
+                height: '100%',
+                borderRadius: 999,
+                background: 'linear-gradient(90deg,#A3E635,#12B981)',
+              }}
+            />
+          </div>
+          <p className="muted" style={{ fontSize: 12, marginTop: 8, lineHeight: 1.5 }}>
+            {t.isMax
+              ? '다 자랐어요! 당신의 꾸준함이 만든 나무예요. 🌳'
+              : `걷는 날마다 조금씩 자라요. 다음 단계까지 ${t.next.min - t.days}일.`}
+            <br />
+            <span className="dim">다 키우면 실제 나무 한 그루를 심어요 (파트너 · 데모)</span>
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function OwoonwanCard({ state, steps, onClose }) {
+  const streak = flexibleStreak(state)
+  const today = new Date(state.today)
+  const dateStr = `${today.getMonth() + 1}월 ${today.getDate()}일`
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'absolute',
+        inset: 0,
+        zIndex: 50,
+        background: 'rgba(0,0,0,0.6)',
+        backdropFilter: 'blur(6px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 24,
+      }}
+    >
+      <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 340 }}>
+        {/* the shareable card */}
+        <div
+          style={{
+            borderRadius: 24,
+            padding: 24,
+            background: 'linear-gradient(150deg, #0B6E4F, #0A0E14 70%)',
+            border: '1px solid rgba(18,185,129,0.35)',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+            textAlign: 'center',
+          }}
+        >
+          <div className="eyebrow" style={{ color: 'var(--lime)' }}>오운완 · 오늘 운동 완료</div>
+          <div style={{ fontSize: 56, margin: '10px 0' }}>🏅</div>
+          <div style={{ fontSize: 22, fontWeight: 800 }}>오늘도 해냈어요</div>
+          <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>
+            {dateStr} · {state.profile.name}님은 {streak}일째 걷는 사람
+          </div>
+          <div className="row" style={{ justifyContent: 'center', gap: 20, marginTop: 18 }}>
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 800 }}>{steps.toLocaleString()}</div>
+              <div className="dim" style={{ fontSize: 11 }}>걸음</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 800 }}>{stepsToKm(steps).toFixed(1)}</div>
+              <div className="dim" style={{ fontSize: 11 }}>km</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 800 }}>{briskMinutes(state)}</div>
+              <div className="dim" style={{ fontSize: 11 }}>활기찬 분</div>
+            </div>
+          </div>
+          <div className="dim" style={{ fontSize: 11, marginTop: 18, letterSpacing: '0.1em' }}>STRIDE · 함께 걷는 습관</div>
+        </div>
+        <div className="row gap-8 mt-16">
+          <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose}>닫기</button>
+          <button
+            className="btn btn-primary"
+            style={{ flex: 2 }}
+            onClick={() => alert('캡처해서 공유하세요! (정식 버전에서는 이미지 저장·공유가 제공돼요)')}
+          >
+            공유하기
+          </button>
+        </div>
+        <p className="dim" style={{ fontSize: 11, textAlign: 'center', marginTop: 10 }}>
+          #오운완 자랑은 강요가 아니에요. 만들고 싶을 때만.
+        </p>
       </div>
     </div>
   )

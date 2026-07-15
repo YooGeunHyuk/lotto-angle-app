@@ -310,6 +310,34 @@ export function suggestGoalAdjustment(state) {
   return { type: 'hold' }
 }
 
+// Growth/care mechanic: how many days you've "shown up" (walked a meaningful
+// amount). Drives 나의 나무 — a non-monetary, intrinsic care reward (N3/N5).
+export function growthDays(state) {
+  let n = state.stepsToday >= 3000 ? 1 : 0
+  for (const [k, v] of Object.entries(state.history)) {
+    if (k !== state.today && v >= 3000) n++
+  }
+  return n
+}
+
+const TREE_STAGES = [
+  { min: 0, emoji: '🌱', name: '새싹' },
+  { min: 5, emoji: '🌿', name: '어린잎' },
+  { min: 12, emoji: '🪴', name: '묘목' },
+  { min: 25, emoji: '🌳', name: '나무' },
+  { min: 45, emoji: '🌸', name: '꽃나무' },
+  { min: 70, emoji: '🍎', name: '열매나무' },
+]
+export function treeStage(state) {
+  const d = growthDays(state)
+  let idx = 0
+  for (let i = 0; i < TREE_STAGES.length; i++) if (d >= TREE_STAGES[i].min) idx = i
+  const cur = TREE_STAGES[idx]
+  const next = TREE_STAGES[idx + 1] || null
+  const progress = next ? (d - cur.min) / (next.min - cur.min) : 1
+  return { days: d, ...cur, idx, next, progress, isMax: !next }
+}
+
 // Correlation-ish summary between walking and mood (for coach insight).
 export function walkMoodSummary(state) {
   const days = Object.keys(state.moods)
