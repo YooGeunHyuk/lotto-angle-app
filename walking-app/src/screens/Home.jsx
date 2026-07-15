@@ -6,6 +6,7 @@ import {
   briskMinutes,
   flexibleStreak,
   treeStage,
+  cardStyles,
 } from '../lib/store.jsx'
 import { createPedometer, stepsToKcal, stepsToKm } from '../lib/pedometer.js'
 import { shareCard } from '../lib/share.js'
@@ -192,6 +193,9 @@ function OwoonwanCard({ state, steps, onClose }) {
   const streak = flexibleStreak(state)
   const today = new Date(state.today)
   const dateStr = `${today.getMonth() + 1}월 ${today.getDate()}일`
+  const styles = cardStyles(state)
+  const [sel, setSel] = useState(styles.find((s) => s.id === 'season') || styles[0])
+
   return (
     <div
       onClick={onClose}
@@ -204,7 +208,7 @@ function OwoonwanCard({ state, steps, onClose }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 24,
+        padding: 20,
       }}
     >
       <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 340 }}>
@@ -212,42 +216,78 @@ function OwoonwanCard({ state, steps, onClose }) {
         <div
           style={{
             borderRadius: 24,
-            padding: 24,
-            background: 'linear-gradient(150deg, #0B6E4F, #0A0E14 70%)',
-            border: '1px solid rgba(18,185,129,0.35)',
+            padding: 22,
+            background: `linear-gradient(150deg, ${sel.bg[0]}, ${sel.bg[1]} 70%)`,
+            border: `1px solid ${sel.accent}59`,
             boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
             textAlign: 'center',
           }}
         >
-          <div className="eyebrow" style={{ color: 'var(--lime)' }}>오운완 · 오늘 운동 완료</div>
-          <div style={{ fontSize: 56, margin: '10px 0' }}>🏅</div>
+          {sel.limited && (
+            <div style={{ color: sel.accent, fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', marginBottom: 4 }}>
+              ✦ {sel.limited} 한정 ✦
+            </div>
+          )}
+          <div className="eyebrow" style={{ color: sel.accent }}>오운완 · 오늘 운동 완료</div>
+          <div style={{ fontSize: 54, margin: '8px 0' }}>{sel.emoji}</div>
           <div style={{ fontSize: 22, fontWeight: 800 }}>오늘도 해냈어요</div>
           <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>
             {dateStr} · {state.profile.name}님은 {streak}일째 걷는 사람
           </div>
-          <div className="row" style={{ justifyContent: 'center', gap: 20, marginTop: 18 }}>
-            <div>
-              <div style={{ fontSize: 22, fontWeight: 800 }}>{steps.toLocaleString()}</div>
-              <div className="dim" style={{ fontSize: 11 }}>걸음</div>
-            </div>
-            <div>
-              <div style={{ fontSize: 22, fontWeight: 800 }}>{stepsToKm(steps).toFixed(1)}</div>
-              <div className="dim" style={{ fontSize: 11 }}>km</div>
-            </div>
-            <div>
-              <div style={{ fontSize: 22, fontWeight: 800 }}>{briskMinutes(state)}</div>
-              <div className="dim" style={{ fontSize: 11 }}>활기찬 분</div>
-            </div>
+          <div className="row" style={{ justifyContent: 'center', gap: 20, marginTop: 16 }}>
+            <div><div style={{ fontSize: 22, fontWeight: 800 }}>{steps.toLocaleString()}</div><div className="dim" style={{ fontSize: 11 }}>걸음</div></div>
+            <div><div style={{ fontSize: 22, fontWeight: 800 }}>{stepsToKm(steps).toFixed(1)}</div><div className="dim" style={{ fontSize: 11 }}>km</div></div>
+            <div><div style={{ fontSize: 22, fontWeight: 800 }}>{briskMinutes(state)}</div><div className="dim" style={{ fontSize: 11 }}>활기찬 분</div></div>
           </div>
-          <div className="dim" style={{ fontSize: 11, marginTop: 18, letterSpacing: '0.1em' }}>STRIDE · 함께 걷는 습관</div>
+          <div className="dim" style={{ fontSize: 11, marginTop: 16, letterSpacing: '0.1em' }}>STRIDE · 함께 걷는 습관</div>
         </div>
-        <div className="row gap-8 mt-16">
+
+        {/* card-style collection picker */}
+        <div className="row between" style={{ margin: '14px 2px 8px' }}>
+          <span style={{ fontSize: 12, fontWeight: 700 }}>카드 디자인 · 수집</span>
+          <span className="dim" style={{ fontSize: 11 }}>{styles.filter((s) => s.got).length}/{styles.length} 보유</span>
+        </div>
+        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+          {styles.map((s) => {
+            const active = sel.id === s.id
+            return (
+              <button
+                key={s.id}
+                onClick={() => s.got && setSel(s)}
+                title={s.got ? s.how : `잠금: ${s.how}`}
+                style={{
+                  flex: '0 0 auto',
+                  width: 62,
+                  padding: '8px 4px',
+                  borderRadius: 14,
+                  background: active ? `${s.accent}22` : 'var(--surface-2)',
+                  border: active ? `1.5px solid ${s.accent}` : '1px solid var(--border)',
+                  opacity: s.got ? 1 : 0.45,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 3,
+                }}
+              >
+                <span style={{ fontSize: 22, filter: s.got ? 'none' : 'grayscale(1)' }}>{s.got ? s.emoji : '🔒'}</span>
+                <span style={{ fontSize: 9.5, color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{s.name}</span>
+              </button>
+            )
+          })}
+        </div>
+        {!sel.got ? null : (
+          <div className="dim" style={{ fontSize: 10.5, margin: '2px 2px 0' }}>
+            {sel.limited ? `이번 시즌 한정 · 진짜 이 계절에 걸어서 얻는 카드` : `획득 조건: ${sel.how}`}
+          </div>
+        )}
+
+        <div className="row gap-8 mt-12">
           <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose}>닫기</button>
           <button
             className="btn btn-primary"
             style={{ flex: 2 }}
             onClick={async () => {
-              const r = await shareCard(state, steps)
+              const r = await shareCard(state, steps, sel)
               if (r.mode === 'download') alert('오운완 카드를 이미지로 저장했어요! 갤러리에서 공유해보세요 📸')
             }}
           >
@@ -255,7 +295,7 @@ function OwoonwanCard({ state, steps, onClose }) {
           </button>
         </div>
         <p className="dim" style={{ fontSize: 11, textAlign: 'center', marginTop: 10 }}>
-          #오운완 자랑은 강요가 아니에요. 만들고 싶을 때만.
+          잠긴 카드는 걷다 보면 열려요. 가챠·구매 없이 진짜 활동으로만.
         </p>
       </div>
     </div>

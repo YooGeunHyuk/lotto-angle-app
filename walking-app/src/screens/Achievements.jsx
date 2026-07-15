@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { useStore, tier, achievements } from '../lib/store.jsx'
+import { useStore, tier, achievements, currentSeason } from '../lib/store.jsx'
 
 export default function Achievements() {
   const { state } = useStore()
@@ -7,15 +7,19 @@ export default function Achievements() {
   const t = tier(state)
   const badges = achievements(state)
   const earned = badges.filter((b) => b.got).length
+  const season = currentSeason(state)
 
   return (
     <div className="screen animate-in">
       <header className="row gap-12" style={{ marginBottom: 16, alignItems: 'center' }}>
         <button className="chip" onClick={() => nav(-1)} style={{ padding: '6px 12px' }}>← 뒤로</button>
-        <div>
+        <div style={{ flex: 1 }}>
           <div className="eyebrow">성취</div>
           <h2 style={{ fontSize: 22 }}>나의 등급 · 도감</h2>
         </div>
+        <span className="chip" style={{ borderColor: `${season.accent}66`, color: season.accent }}>
+          {season.emoji} {season.label}
+        </span>
       </header>
 
       {/* Current tier hero */}

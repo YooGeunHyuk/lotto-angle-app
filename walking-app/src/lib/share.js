@@ -17,7 +17,8 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath()
 }
 
-export function renderCard(state, steps) {
+export function renderCard(state, steps, style) {
+  const s = style || { emoji: '🏅', accent: '#12B981', bg: ['#0B6E4F', '#0A0E14'] }
   const W = 720
   const H = 900
   const canvas = document.createElement('canvas')
@@ -26,17 +27,16 @@ export function renderCard(state, steps) {
   const ctx = canvas.getContext('2d')
 
   // background
-  const g = ctx.createLinearGradient(0, 0, W, H)
-  g.addColorStop(0, '#0B6E4F')
-  g.addColorStop(0.7, '#0A0E14')
-  g.addColorStop(1, '#0A0E14')
-  ctx.fillStyle = g
   ctx.fillStyle = '#0A0E14'
   ctx.fillRect(0, 0, W, H)
+  const g = ctx.createLinearGradient(0, 0, W, H)
+  g.addColorStop(0, s.bg[0])
+  g.addColorStop(0.7, s.bg[1])
+  g.addColorStop(1, s.bg[1])
   ctx.fillStyle = g
   roundRect(ctx, 40, 40, W - 80, H - 80, 40)
   ctx.fill()
-  ctx.strokeStyle = 'rgba(18,185,129,0.35)'
+  ctx.strokeStyle = hexA(s.accent, 0.45)
   ctx.lineWidth = 2
   roundRect(ctx, 40, 40, W - 80, H - 80, 40)
   ctx.stroke()
@@ -44,14 +44,21 @@ export function renderCard(state, steps) {
   ctx.textAlign = 'center'
   const cx = W / 2
 
+  // limited-season ribbon
+  if (s.limited) {
+    ctx.fillStyle = s.accent
+    ctx.font = 'bold 22px sans-serif'
+    ctx.fillText(`✦ ${s.limited} 한정 ✦`, cx, 100)
+  }
+
   // eyebrow
-  ctx.fillStyle = '#A3E635'
+  ctx.fillStyle = s.accent
   ctx.font = 'bold 26px sans-serif'
   ctx.fillText('오운완 · 오늘 운동 완료', cx, 150)
 
-  // medal
+  // emblem
   ctx.font = '140px sans-serif'
-  ctx.fillText('🏅', cx, 320)
+  ctx.fillText(s.emoji, cx, 320)
 
   // headline
   ctx.fillStyle = '#F1F5F9'
@@ -82,10 +89,10 @@ export function renderCard(state, steps) {
     ctx.fillText(label, x, 640)
   })
 
-  // tree/tier flavor
-  ctx.fillStyle = '#12B981'
+  // flavor
+  ctx.fillStyle = s.accent
   ctx.font = 'bold 30px sans-serif'
-  ctx.fillText('🌳 꾸준함이 만든 하루', cx, 730)
+  ctx.fillText(`${s.emoji} 꾸준함이 만든 하루`, cx, 730)
 
   // footer
   ctx.fillStyle = '#64748B'
@@ -93,6 +100,14 @@ export function renderCard(state, steps) {
   ctx.fillText('STRIDE · 함께 걷는 습관', cx, 810)
 
   return canvas
+}
+
+function hexA(hex, a) {
+  const h = hex.replace('#', '')
+  const r = parseInt(h.slice(0, 2), 16)
+  const g = parseInt(h.slice(2, 4), 16)
+  const b = parseInt(h.slice(4, 6), 16)
+  return `rgba(${r},${g},${b},${a})`
 }
 
 function flexStreak(state) {
@@ -116,8 +131,8 @@ function flexStreak(state) {
   return streak
 }
 
-export async function shareCard(state, steps) {
-  const canvas = renderCard(state, steps)
+export async function shareCard(state, steps, style) {
+  const canvas = renderCard(state, steps, style)
   const blob = await new Promise((res) => canvas.toBlob(res, 'image/png'))
   if (!blob) return { ok: false }
   const file = new File([blob], 'stride-오운완.png', { type: 'image/png' })

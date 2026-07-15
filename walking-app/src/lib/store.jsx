@@ -378,7 +378,48 @@ export function achievements(state) {
     { id: 'goalup', emoji: '📈', name: '한 걸음 더', desc: '목표 상향 조정', color: '#FB923C', got: state.profile.dailyGoal > 7000 },
     { id: 'legend', emoji: '👑', name: '레전드', desc: '100일 걷기', color: '#8B5CF6', got: growthDays(state) >= 100 },
   ]
+  // Seasonal limited badge — earned by walking during the real season.
+  const season = currentSeason(state)
+  defs.push({
+    id: 'season_' + season.key + season.year,
+    emoji: season.emoji,
+    name: season.name,
+    desc: `${season.label} 한정`,
+    color: season.accent,
+    got: state.stepsToday >= 3000 || Object.values(state.history).some((v) => v >= 3000),
+    limited: true,
+  })
   return defs
+}
+
+// ── Season (계절 한정) — celebrates the REAL season, no purchase/pressure ──
+const SEASONS = {
+  spring: { name: '벚꽃 시즌', emoji: '🌸', accent: '#F472B6', bg: ['#7A3B52', '#0A0E14'] },
+  summer: { name: '여름 시즌', emoji: '☀️', accent: '#FBBF24', bg: ['#7A5A18', '#0A0E14'] },
+  autumn: { name: '단풍 시즌', emoji: '🍁', accent: '#FB923C', bg: ['#7A431C', '#0A0E14'] },
+  winter: { name: '눈길 시즌', emoji: '❄️', accent: '#38BDF8', bg: ['#1E4E6E', '#0A0E14'] },
+}
+export function currentSeason(state) {
+  const d = new Date(state?.today || new Date().toISOString().slice(0, 10))
+  const m = d.getMonth() + 1
+  const key = m >= 3 && m <= 5 ? 'spring' : m >= 6 && m <= 8 ? 'summer' : m >= 9 && m <= 11 ? 'autumn' : 'winter'
+  const year = m === 12 ? d.getFullYear() + 1 : d.getFullYear() // winter spans year-end
+  return { key, year, label: `${year} ${SEASONS[key].name}`, ...SEASONS[key] }
+}
+
+// ── Collectible 오운완 card styles — earned diverse ways (no gacha/pay) ─────
+export function cardStyles(state) {
+  const season = currentSeason(state)
+  const maxSteps = Math.max(state.stepsToday, ...Object.values(state.history), 0)
+  const t = tier(state)
+  return [
+    { id: 'classic', name: '클래식', emoji: '🏅', accent: '#12B981', bg: ['#0B6E4F', '#0A0E14'], got: true, how: '기본 카드' },
+    { id: 'season', name: season.name, emoji: season.emoji, accent: season.accent, bg: season.bg, got: true, limited: season.label, how: `${season.label} 한정` },
+    { id: 'gold', name: '골드', emoji: '🥇', accent: '#FBBF24', bg: ['#7A5A18', '#0A0E14'], got: maxSteps >= 10000, how: '하루 1만 걸음 달성' },
+    { id: 'streak', name: '불꽃', emoji: '🔥', accent: '#FB7185', bg: ['#7A2438', '#0A0E14'], got: flexibleStreak(state) >= 7, how: '유연 스트릭 7일' },
+    { id: 'tree', name: '숲', emoji: '🌳', accent: '#A3E635', bg: ['#2E5A1C', '#0A0E14'], got: growthDays(state) >= 25, how: '나의 나무 25일 키움' },
+    { id: 'master', name: '마스터', emoji: '👑', accent: '#8B5CF6', bg: ['#3E2A6E', '#0A0E14'], got: t.level >= 4, how: '트레일러 등급 이상' },
+  ]
 }
 
 // Correlation-ish summary between walking and mood (for coach insight).
