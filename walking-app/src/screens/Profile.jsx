@@ -1,4 +1,5 @@
-import { useStore, weekActiveDays, walkMoodSummary } from '../lib/store.jsx'
+import { useNavigate } from 'react-router-dom'
+import { useStore, weekActiveDays, walkMoodSummary, tier, achievements } from '../lib/store.jsx'
 import { stepsToKm } from '../lib/pedometer.js'
 import { IcCheck, IcLeaf, IcSpark } from '../components/Icons.jsx'
 
@@ -14,9 +15,13 @@ function weekSteps(state) {
 
 export default function Profile() {
   const { state, dispatch } = useStore()
+  const nav = useNavigate()
   const totalSteps = Object.values(state.history).reduce((a, b) => a + b, 0) + state.stepsToday
   const totalKm = stepsToKm(totalSteps)
   const isPlus = state.profile.plan === 'plus'
+  const t = tier(state)
+  const badges = achievements(state)
+  const earned = badges.filter((b) => b.got).length
 
   const setGoal = (v) => dispatch({ type: 'UPDATE_PROFILE', patch: { dailyGoal: v } })
   const togglePlan = () =>
@@ -50,6 +55,31 @@ export default function Profile() {
         <div className="card"><div className="muted" style={{ fontSize: 12 }}>누적 거리</div><div className="stat-num mt-8">{totalKm.toFixed(1)} km</div></div>
         <div className="card"><div className="muted" style={{ fontSize: 12 }}>누적 걸음</div><div className="stat-num mt-8">{(totalSteps / 1000).toFixed(1)}k</div></div>
       </div>
+
+      {/* Tier & achievements entry */}
+      <button
+        onClick={() => nav('/achievements')}
+        className="card mt-16 row between"
+        style={{ width: '100%', textAlign: 'left', borderColor: `${t.color}55`, alignItems: 'center' }}
+      >
+        <div className="row gap-12" style={{ alignItems: 'center' }}>
+          <span
+            style={{
+              width: 48, height: 48, borderRadius: 14, fontSize: 26,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: `radial-gradient(circle at 50% 40%, ${t.color}33, ${t.color}0d)`,
+              border: `1px solid ${t.color}55`,
+            }}
+          >
+            {t.emoji}
+          </span>
+          <div>
+            <div style={{ fontWeight: 800, color: t.color }}>{t.name} <span className="dim" style={{ fontWeight: 600, fontSize: 12 }}>Lv.{t.level}</span></div>
+            <div className="muted" style={{ fontSize: 12 }}>성취 도감 {earned} / {badges.length} · 등급 사다리 보기</div>
+          </div>
+        </div>
+        <span className="dim" style={{ fontSize: 18 }}>›</span>
+      </button>
 
       {/* Weekly reflection — self-monitoring boosts adherence */}
       <WeeklyReflection state={state} isPlus={isPlus} />

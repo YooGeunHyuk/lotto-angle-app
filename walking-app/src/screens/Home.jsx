@@ -8,6 +8,7 @@ import {
   treeStage,
 } from '../lib/store.jsx'
 import { createPedometer, stepsToKcal, stepsToKm } from '../lib/pedometer.js'
+import { shareCard } from '../lib/share.js'
 import Ring from '../components/Ring.jsx'
 import { IcBolt, IcFire, IcHeart, IcLeaf, IcRoute } from '../components/Icons.jsx'
 
@@ -245,9 +246,12 @@ function OwoonwanCard({ state, steps, onClose }) {
           <button
             className="btn btn-primary"
             style={{ flex: 2 }}
-            onClick={() => alert('캡처해서 공유하세요! (정식 버전에서는 이미지 저장·공유가 제공돼요)')}
+            onClick={async () => {
+              const r = await shareCard(state, steps)
+              if (r.mode === 'download') alert('오운완 카드를 이미지로 저장했어요! 갤러리에서 공유해보세요 📸')
+            }}
           >
-            공유하기
+            이미지로 공유·저장
           </button>
         </div>
         <p className="dim" style={{ fontSize: 11, textAlign: 'center', marginTop: 10 }}>

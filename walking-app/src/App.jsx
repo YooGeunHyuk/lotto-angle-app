@@ -6,6 +6,7 @@ import Challenges from './screens/Challenges.jsx'
 import Together from './screens/Together.jsx'
 import Coach from './screens/Coach.jsx'
 import Profile from './screens/Profile.jsx'
+import Achievements from './screens/Achievements.jsx'
 import Onboarding from './screens/Onboarding.jsx'
 
 const TABS = [
@@ -35,6 +36,7 @@ function Shell() {
         <Route path="/together" element={<Together />} />
         <Route path="/coach" element={<Coach />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/achievements" element={<Achievements />} />
       </Routes>
       <nav className="tabbar">
         {TABS.map(({ to, label, Icon, end }) => (

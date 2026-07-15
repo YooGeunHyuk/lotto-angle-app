@@ -338,6 +338,49 @@ export function treeStage(state) {
   return { days: d, ...cur, idx, next, progress, isMax: !next }
 }
 
+// ── Tiers (칭호/등급) — diverse identity levels from days shown up ──────────
+// Non-monetary status: a colorful title that grows with real consistency.
+const TIERS = [
+  { min: 0, name: '새싹 워커', emoji: '🌱', color: '#A3E635' },
+  { min: 5, name: '산책 입문', emoji: '🚶', color: '#38BDF8' },
+  { min: 14, name: '걷기 러버', emoji: '🥾', color: '#12B981' },
+  { min: 30, name: '트레일러', emoji: '🏞️', color: '#FBBF24' },
+  { min: 60, name: '산책 마스터', emoji: '⛰️', color: '#FB923C' },
+  { min: 100, name: '걷기의 달인', emoji: '🏔️', color: '#F472B6' },
+  { min: 200, name: '레전드 워커', emoji: '👑', color: '#8B5CF6' },
+]
+export function tier(state) {
+  const d = growthDays(state)
+  let idx = 0
+  for (let i = 0; i < TIERS.length; i++) if (d >= TIERS[i].min) idx = i
+  const cur = TIERS[idx]
+  const next = TIERS[idx + 1] || null
+  const progress = next ? (d - cur.min) / (next.min - cur.min) : 1
+  return { ...cur, idx, level: idx + 1, days: d, next, progress, isMax: !next, total: TIERS.length }
+}
+
+// ── Achievements (성취 도감) — diverse badges tied to REAL actions ──────────
+export function achievements(state) {
+  const hist = Object.values(state.history)
+  const anyDay = state.stepsToday > 0 || hist.some((v) => v > 0)
+  const metAny = state.stepsToday >= state.profile.dailyGoal || hist.some((v) => v >= state.profile.dailyGoal)
+  const defs = [
+    { id: 'first', emoji: '👣', name: '첫 발자국', desc: '첫 걷기 기록', color: '#38BDF8', got: anyDay },
+    { id: 'owoonwan', emoji: '🏅', name: '첫 오운완', desc: '하루 목표 첫 달성', color: '#FBBF24', got: metAny },
+    { id: 'week', emoji: '📅', name: '이번 주 완주', desc: '주간 활동일수 달성', color: '#12B981', got: weekActiveDays(state) >= state.profile.weeklyGoalDays },
+    { id: 'streak7', emoji: '🔥', name: '일주일 개근', desc: '유연 스트릭 7일', color: '#FB7185', got: flexibleStreak(state) >= 7 },
+    { id: 'brisk', emoji: '⚡', name: '활력 충전', desc: '활기찬 걷기 30분', color: '#FBBF24', got: briskMinutes(state) >= 30 },
+    { id: 'sprout', emoji: '🌿', name: '새싹 정원사', desc: '나의 나무 5일 키움', color: '#A3E635', got: growthDays(state) >= 5 },
+    { id: 'tree', emoji: '🌳', name: '나무 키움', desc: '나의 나무 25일 키움', color: '#12B981', got: growthDays(state) >= 25 },
+    { id: 'plan', emoji: '📝', name: '계획러', desc: 'if-then 걷기 약속 설정', color: '#8B5CF6', got: !!(state.walkPlan.cue && state.walkPlan.action) },
+    { id: 'mood', emoji: '💚', name: '기분 기록러', desc: '기분 체크인', color: '#FF6B6B', got: Object.keys(state.moods).length > 0 },
+    { id: 'challenge', emoji: '🚩', name: '도전자', desc: '챌린지 참여', color: '#38BDF8', got: state.deposits.length > 0 },
+    { id: 'goalup', emoji: '📈', name: '한 걸음 더', desc: '목표 상향 조정', color: '#FB923C', got: state.profile.dailyGoal > 7000 },
+    { id: 'legend', emoji: '👑', name: '레전드', desc: '100일 걷기', color: '#8B5CF6', got: growthDays(state) >= 100 },
+  ]
+  return defs
+}
+
 // Correlation-ish summary between walking and mood (for coach insight).
 export function walkMoodSummary(state) {
   const days = Object.keys(state.moods)
