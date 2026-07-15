@@ -37,3 +37,9 @@ export const IcLock = (p) => (
 export const IcCheck = (p) => (
   <svg viewBox="0 0 24 24" className="ico" {...p}><path {...S} d="m5 12 4 4 10-10" /></svg>
 )
+export const IcMap = (p) => (
+  <svg viewBox="0 0 24 24" className="ico" {...p}><path {...S} d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z" /><path {...S} d="M9 4v14M15 6v14" /></svg>
+)
+export const IcPin = (p) => (
+  <svg viewBox="0 0 24 24" className="ico" {...p}><path {...S} d="M12 21s7-6 7-11a7 7 0 1 0-14 0c0 5 7 11 7 11Z" /><circle {...S} cx="12" cy="10" r="2.5" /></svg>
+)
