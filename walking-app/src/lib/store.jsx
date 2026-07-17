@@ -36,6 +36,7 @@ const initial = {
   moods: {}, // { 'YYYY-MM-DD': score 1..5 } — walk↔mood link (mental health)
   reviews: {}, // { [placeName]: [{ rating, text, date, photo? }] } — our review moat
   courses: { completed: [] }, // ids of finished 미식 산책 코스
+  userCourses: [], // { id, name, emoji, stops:[names], km, min, steps, mine:true }
   settings: { sound: true, haptics: true },
 }
 
@@ -108,6 +109,10 @@ function reducer(state, action) {
       if (state.courses.completed.includes(action.id)) return state
       return { ...state, courses: { completed: [...state.courses.completed, action.id] } }
     }
+    case 'ADD_USER_COURSE':
+      return { ...state, userCourses: [action.course, ...state.userCourses] }
+    case 'DELETE_USER_COURSE':
+      return { ...state, userCourses: state.userCourses.filter((c) => c.id !== action.id) }
     case 'RESET':
       return { ...initial, profile: { ...initial.profile, onboarded: false } }
     default:

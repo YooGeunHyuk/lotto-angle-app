@@ -260,11 +260,16 @@ function downscaleImage(file, max = 600, quality = 0.6) {
 function CourseView({ state }) {
   const { dispatch } = useStore()
   const [started, setStarted] = useState({})
+  const [creating, setCreating] = useState(false)
   const remaining = Math.max(0, state.profile.dailyGoal - state.stepsToday)
+  const allCourses = [...state.userCourses, ...COURSES]
   return (
     <div className="col gap-12">
-      <p className="muted" style={{ fontSize: 13, margin: '0 0 2px' }}>맛집을 잇는 도보 코스. 걸으며 미식을 즐기고 목표도 채워요.</p>
-      {COURSES.map((c) => {
+      <div className="row between" style={{ alignItems: 'center' }}>
+        <p className="muted" style={{ fontSize: 13, margin: 0, maxWidth: '62%' }}>맛집을 잇는 도보 코스. 걸으며 미식을 즐기고 목표도 채워요.</p>
+        <button className="btn btn-primary" style={{ padding: '9px 14px', fontSize: 13 }} onClick={() => setCreating(true)}>+ 내 코스 만들기</button>
+      </div>
+      {allCourses.map((c) => {
         const done = state.courses.completed.includes(c.id)
         const inProgress = started[c.id]
         return (
@@ -273,11 +278,20 @@ function CourseView({ state }) {
               <div className="row gap-12">
                 <span style={{ fontSize: 26 }}>{c.emoji}</span>
                 <div>
-                  <strong>{c.name}</strong>
+                  <div className="row gap-8" style={{ alignItems: 'center' }}>
+                    <strong>{c.name}</strong>
+                    {c.mine && <span className="chip" style={{ padding: '2px 8px', fontSize: 10, color: 'var(--sky)', borderColor: 'rgba(56,189,248,0.4)' }}>내 코스</span>}
+                  </div>
                   <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>{c.km}km · {c.min}분 · 약 {c.steps.toLocaleString()}걸음</div>
                 </div>
               </div>
-              {done ? <span className="chip chip-on">완주 ✅</span> : <span className="chip chip-on">{c.stops.length}곳</span>}
+              {done ? (
+                <span className="chip chip-on">완주 ✅</span>
+              ) : c.mine ? (
+                <button className="chip" style={{ color: 'var(--text-3)' }} onClick={() => dispatch({ type: 'DELETE_USER_COURSE', id: c.id })}>삭제</button>
+              ) : (
+                <span className="chip chip-on">{c.stops.length}곳</span>
+              )}
             </div>
             <div className="row" style={{ marginTop: 12, flexWrap: 'wrap', alignItems: 'center', gap: 4 }}>
               {c.stops.map((s, i) => (
@@ -314,6 +328,89 @@ function CourseView({ state }) {
         <p className="muted" style={{ fontSize: 12, margin: 0, lineHeight: 1.6 }}>
           정식 버전에선 <strong>보행자 경로 API</strong>로 실제 도보 길안내를 제공하고, GPS로 완주를 자동 인증해요.
           코스는 우리 큐레이션 + <strong>유저가 만든 코스</strong>로 지역마다 늘어나요.
+        </p>
+      </div>
+      {creating && <CourseCreator dispatch={dispatch} onClose={() => setCreating(false)} />}
+    </div>
+  )
+}
+
+const COURSE_EMOJIS = ['🍜', '☕', '🍣', '🍔', '🌮', '🍕', '🥗', '🍰']
+
+function CourseCreator({ dispatch, onClose }) {
+  const [name, setName] = useState('')
+  const [emoji, setEmoji] = useState('🍜')
+  const [stops, setStops] = useState([])
+
+  const toggle = (n) => setStops((s) => (s.includes(n) ? s.filter((x) => x !== n) : [...s, n]))
+  const steps = stops.length * 850
+  const km = (steps / 1350).toFixed(1)
+  const min = Math.round(steps / 110)
+  const canSave = name.trim() && stops.length >= 2
+
+  const save = () => {
+    if (!canSave) return
+    dispatch({
+      type: 'ADD_USER_COURSE',
+      course: { id: 'u' + Date.now(), name: name.trim(), emoji, stops, km: +km, min, steps, mine: true },
+    })
+    onClose()
+  }
+
+  return (
+    <div
+      onClick={onClose}
+      style={{ position: 'absolute', inset: 0, zIndex: 50, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+    >
+      <div onClick={(e) => e.stopPropagation()} className="card" style={{ width: '100%', maxWidth: 460, borderRadius: '24px 24px 0 0', maxHeight: '86%', overflowY: 'auto' }}>
+        <div className="row between" style={{ marginBottom: 14 }}>
+          <h3 style={{ fontSize: 17 }}>내 미식 코스 만들기</h3>
+          <button className="chip" onClick={onClose}>닫기</button>
+        </div>
+
+        <div className="row gap-8" style={{ marginBottom: 12 }}>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {COURSE_EMOJIS.slice(0, 4).map((e) => (
+              <button key={e} onClick={() => setEmoji(e)} style={{ fontSize: 22, padding: 6, borderRadius: 10, background: emoji === e ? 'rgba(18,185,129,0.18)' : 'var(--surface-2)', border: emoji === e ? '1px solid var(--green-500)' : '1px solid var(--border)' }}>{e}</button>
+            ))}
+          </div>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="코스 이름 (예: 우리 동네 카페 투어)"
+            style={{ flex: 1, padding: '12px 14px', borderRadius: 12, background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: 14, outline: 'none' }}
+          />
+        </div>
+
+        <div style={{ fontSize: 13, fontWeight: 700, margin: '4px 0 8px' }}>맛집 담기 (순서대로 · 2곳 이상)</div>
+        <div className="col gap-8">
+          {PLACES.map((p) => {
+            const idx = stops.indexOf(p.name)
+            const on = idx >= 0
+            return (
+              <button
+                key={p.name}
+                onClick={() => toggle(p.name)}
+                className="row between"
+                style={{ padding: '10px 12px', borderRadius: 12, textAlign: 'left', background: on ? 'rgba(18,185,129,0.12)' : 'var(--surface-2)', border: on ? '1px solid rgba(18,185,129,0.4)' : '1px solid var(--border)' }}
+              >
+                <span className="row gap-8"><span style={{ fontSize: 18 }}>{catEmoji(p.cat)}</span> <span style={{ fontSize: 14 }}>{p.name}</span></span>
+                {on ? <span className="chip chip-on" style={{ padding: '2px 9px' }}>{idx + 1}번째</span> : <span className="dim">담기 +</span>}
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="card mt-16" style={{ background: 'var(--surface-2)' }}>
+          <div className="muted" style={{ fontSize: 12 }}>예상</div>
+          <div style={{ fontWeight: 800, marginTop: 2 }}>{km}km · {min}분 · 약 {steps.toLocaleString()}걸음 · {stops.length}곳</div>
+        </div>
+
+        <button className={'btn btn-block mt-16 ' + (canSave ? 'btn-primary' : 'btn-ghost')} onClick={save} disabled={!canSave}>
+          {canSave ? '코스 저장' : '이름과 맛집 2곳 이상을 담아주세요'}
+        </button>
+        <p className="dim" style={{ fontSize: 11, textAlign: 'center', marginTop: 10 }}>
+          만든 코스는 내 목록에 저장돼요. 정식 버전에선 다른 사람과 공유할 수 있어요.
         </p>
       </div>
     </div>
