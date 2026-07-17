@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useStore } from '../lib/store.jsx'
 import KakaoMap from '../components/KakaoMap.jsx'
-import { IcPin, IcRoute } from '../components/Icons.jsx'
+import { IcCheck, IcPin, IcRoute } from '../components/Icons.jsx'
 
 /* 맛집 지도 — walking × food discovery.
    Map is REAL Kakao Maps when VITE_KAKAO_MAP_KEY is set (falls back to a mock
@@ -172,11 +172,20 @@ function PlaceCard({ p, active, onPick }) {
 function ReviewBlock({ place, reviews, dispatch, today }) {
   const [rating, setRating] = useState(5)
   const [text, setText] = useState('')
+  const [photo, setPhoto] = useState(null)
+  const fileRef = useRef(null)
+
+  const onFile = async (e) => {
+    const f = e.target.files?.[0]
+    if (f) setPhoto(await downscaleImage(f))
+  }
   const submit = (e) => {
     e.stopPropagation()
     if (!text.trim()) return
-    dispatch({ type: 'ADD_REVIEW', place, review: { rating, text: text.trim(), date: today } })
+    dispatch({ type: 'ADD_REVIEW', place, review: { rating, text: text.trim(), date: today, photo } })
     setText('')
+    setPhoto(null)
+    if (fileRef.current) fileRef.current.value = ''
   }
   return (
     <div onClick={(e) => e.stopPropagation()} style={{ marginTop: 10, padding: 12, borderRadius: 14, background: 'var(--surface-2)' }}>
@@ -185,7 +194,20 @@ function ReviewBlock({ place, reviews, dispatch, today }) {
           <button key={n} onClick={() => setRating(n)} style={{ fontSize: 20, opacity: n <= rating ? 1 : 0.3 }}>⭐</button>
         ))}
       </div>
+      {photo && (
+        <div style={{ position: 'relative', marginBottom: 8, width: 90 }}>
+          <img src={photo} alt="" style={{ width: 90, height: 90, objectFit: 'cover', borderRadius: 10 }} />
+          <button
+            onClick={() => setPhoto(null)}
+            style={{ position: 'absolute', top: -6, right: -6, width: 22, height: 22, borderRadius: 999, background: 'var(--surface-3)', fontSize: 12 }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
       <div className="row gap-8">
+        <button className="btn btn-ghost" style={{ padding: '10px 12px' }} onClick={() => fileRef.current?.click()}>📷</button>
+        <input ref={fileRef} type="file" accept="image/*" onChange={onFile} style={{ display: 'none' }} />
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -197,55 +219,101 @@ function ReviewBlock({ place, reviews, dispatch, today }) {
       {reviews.length > 0 && (
         <div className="col gap-8" style={{ marginTop: 12 }}>
           {reviews.map((r, i) => (
-            <div key={i} style={{ fontSize: 12.5, lineHeight: 1.5 }}>
-              <span style={{ color: 'var(--amber)' }}>{'⭐'.repeat(r.rating)}</span> <span className="muted">{r.text}</span>
+            <div key={i} className="row gap-8" style={{ alignItems: 'flex-start' }}>
+              {r.photo && <img src={r.photo} alt="" style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }} />}
+              <div style={{ fontSize: 12.5, lineHeight: 1.5 }}>
+                <span style={{ color: 'var(--amber)' }}>{'⭐'.repeat(r.rating)}</span> <span className="muted">{r.text}</span>
+              </div>
             </div>
           ))}
         </div>
       )}
-      <p className="dim" style={{ fontSize: 10.5, marginTop: 10 }}>내 리뷰는 이 기기에 저장돼요. 정식 버전에선 걷기 유저들의 리뷰가 모여 우리만의 맛집 데이터가 됩니다.</p>
+      <p className="dim" style={{ fontSize: 10.5, marginTop: 10 }}>내 리뷰·사진은 이 기기에 저장돼요. 정식 버전에선 걷기 유저 리뷰가 모여 우리만의 맛집 데이터가 됩니다.</p>
     </div>
   )
 }
 
+// Downscale an image file to a small JPEG data URL (localStorage-friendly).
+function downscaleImage(file, max = 600, quality = 0.6) {
+  return new Promise((resolve) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      const scale = Math.min(1, max / Math.max(img.width, img.height))
+      const w = Math.round(img.width * scale)
+      const h = Math.round(img.height * scale)
+      const c = document.createElement('canvas')
+      c.width = w
+      c.height = h
+      c.getContext('2d').drawImage(img, 0, 0, w, h)
+      URL.revokeObjectURL(url)
+      resolve(c.toDataURL('image/jpeg', quality))
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      resolve(null)
+    }
+    img.src = url
+  })
+}
+
 function CourseView({ state }) {
+  const { dispatch } = useStore()
+  const [started, setStarted] = useState({})
   const remaining = Math.max(0, state.profile.dailyGoal - state.stepsToday)
   return (
     <div className="col gap-12">
       <p className="muted" style={{ fontSize: 13, margin: '0 0 2px' }}>맛집을 잇는 도보 코스. 걸으며 미식을 즐기고 목표도 채워요.</p>
-      {COURSES.map((c) => (
-        <div key={c.id} className="card">
-          <div className="row between">
-            <div className="row gap-12">
-              <span style={{ fontSize: 26 }}>{c.emoji}</span>
-              <div>
-                <strong>{c.name}</strong>
-                <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>{c.km}km · {c.min}분 · 약 {c.steps.toLocaleString()}걸음</div>
+      {COURSES.map((c) => {
+        const done = state.courses.completed.includes(c.id)
+        const inProgress = started[c.id]
+        return (
+          <div key={c.id} className={'card' + (done ? ' card-glow' : '')}>
+            <div className="row between">
+              <div className="row gap-12">
+                <span style={{ fontSize: 26 }}>{c.emoji}</span>
+                <div>
+                  <strong>{c.name}</strong>
+                  <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>{c.km}km · {c.min}분 · 약 {c.steps.toLocaleString()}걸음</div>
+                </div>
               </div>
+              {done ? <span className="chip chip-on">완주 ✅</span> : <span className="chip chip-on">{c.stops.length}곳</span>}
             </div>
-            <span className="chip chip-on">{c.stops.length}곳</span>
-          </div>
-          {/* stops as a path */}
-          <div className="row" style={{ marginTop: 12, flexWrap: 'wrap', alignItems: 'center', gap: 4 }}>
-            {c.stops.map((s, i) => (
-              <span key={s} className="row" style={{ alignItems: 'center', gap: 4 }}>
-                <span className="chip" style={{ padding: '4px 10px', fontSize: 11 }}>{s}</span>
-                {i < c.stops.length - 1 && <span className="dim">→</span>}
+            <div className="row" style={{ marginTop: 12, flexWrap: 'wrap', alignItems: 'center', gap: 4 }}>
+              {c.stops.map((s, i) => (
+                <span key={s} className="row" style={{ alignItems: 'center', gap: 4 }}>
+                  <span className="chip" style={{ padding: '4px 10px', fontSize: 11 }}>{s}</span>
+                  {i < c.stops.length - 1 && <span className="dim">→</span>}
+                </span>
+              ))}
+            </div>
+            <div className="row between mt-12" style={{ alignItems: 'center' }}>
+              <span className="muted" style={{ fontSize: 12 }}>
+                {done ? '코스 완주 배지 획득! 🍜' : c.steps <= remaining ? '오늘 목표 안에서 완주 가능!' : `목표까지 ${remaining.toLocaleString()}걸음 남음`}
               </span>
-            ))}
+              {done ? (
+                <button className="btn btn-ghost" style={{ padding: '10px 16px' }} disabled>완주함</button>
+              ) : inProgress ? (
+                <button
+                  className="btn btn-primary"
+                  style={{ padding: '10px 16px' }}
+                  onClick={() => dispatch({ type: 'COMPLETE_COURSE', id: c.id })}
+                >
+                  <IcCheck style={{ width: 16, height: 16 }} /> 완주 인증
+                </button>
+              ) : (
+                <button className="btn btn-primary" style={{ padding: '10px 16px' }} onClick={() => setStarted((s) => ({ ...s, [c.id]: true }))}>
+                  코스 시작
+                </button>
+              )}
+            </div>
           </div>
-          <div className="row between mt-12" style={{ alignItems: 'center' }}>
-            <span className="muted" style={{ fontSize: 12 }}>
-              {c.steps <= remaining ? '오늘 목표 안에서 완주 가능!' : `목표까지 ${remaining.toLocaleString()}걸음 남음`}
-            </span>
-            <button className="btn btn-primary" style={{ padding: '10px 16px' }}>코스 시작</button>
-          </div>
-        </div>
-      ))}
+        )
+      })}
       <div className="card" style={{ background: 'var(--surface-2)' }}>
         <p className="muted" style={{ fontSize: 12, margin: 0, lineHeight: 1.6 }}>
-          정식 버전에선 <strong>보행자 경로 API</strong>로 실제 도보 길안내를 제공하고, 완주 시 <strong>코스 배지</strong>를
-          드려요. 코스는 우리 큐레이션 + 유저가 만든 코스로 지역마다 늘어나요.
+          정식 버전에선 <strong>보행자 경로 API</strong>로 실제 도보 길안내를 제공하고, GPS로 완주를 자동 인증해요.
+          코스는 우리 큐레이션 + <strong>유저가 만든 코스</strong>로 지역마다 늘어나요.
         </p>
       </div>
     </div>

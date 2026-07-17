@@ -34,7 +34,8 @@ const initial = {
   donations: { totalMeters: 0, campaignId: null },
   buddies: [],
   moods: {}, // { 'YYYY-MM-DD': score 1..5 } — walk↔mood link (mental health)
-  reviews: {}, // { [placeName]: [{ rating, text, date }] } — our own review moat
+  reviews: {}, // { [placeName]: [{ rating, text, date, photo? }] } — our review moat
+  courses: { completed: [] }, // ids of finished 미식 산책 코스
   settings: { sound: true, haptics: true },
 }
 
@@ -102,6 +103,10 @@ function reducer(state, action) {
         ...state,
         reviews: { ...state.reviews, [action.place]: [action.review, ...list] },
       }
+    }
+    case 'COMPLETE_COURSE': {
+      if (state.courses.completed.includes(action.id)) return state
+      return { ...state, courses: { completed: [...state.courses.completed, action.id] } }
     }
     case 'RESET':
       return { ...initial, profile: { ...initial.profile, onboarded: false } }
@@ -384,6 +389,8 @@ export function achievements(state) {
     { id: 'mood', emoji: '💚', name: '기분 기록러', desc: '기분 체크인', color: '#FF6B6B', got: Object.keys(state.moods).length > 0 },
     { id: 'challenge', emoji: '🚩', name: '도전자', desc: '챌린지 참여', color: '#38BDF8', got: state.deposits.length > 0 },
     { id: 'goalup', emoji: '📈', name: '한 걸음 더', desc: '목표 상향 조정', color: '#FB923C', got: state.profile.dailyGoal > 7000 },
+    { id: 'reviewer', emoji: '✍️', name: '미식 리뷰어', desc: '맛집 리뷰 작성', color: '#38BDF8', got: Object.keys(state.reviews).length > 0 },
+    { id: 'course', emoji: '🍜', name: '코스 완주', desc: '미식 산책 코스 완주', color: '#FB923C', got: state.courses.completed.length > 0 },
     { id: 'legend', emoji: '👑', name: '레전드', desc: '100일 걷기', color: '#8B5CF6', got: growthDays(state) >= 100 },
   ]
   // Seasonal limited badge — earned by walking during the real season.
@@ -427,6 +434,7 @@ export function cardStyles(state) {
     { id: 'streak', name: '불꽃', emoji: '🔥', accent: '#FB7185', bg: ['#7A2438', '#0A0E14'], got: flexibleStreak(state) >= 7, how: '유연 스트릭 7일' },
     { id: 'tree', name: '숲', emoji: '🌳', accent: '#A3E635', bg: ['#2E5A1C', '#0A0E14'], got: growthDays(state) >= 25, how: '나의 나무 25일 키움' },
     { id: 'master', name: '마스터', emoji: '👑', accent: '#8B5CF6', bg: ['#3E2A6E', '#0A0E14'], got: t.level >= 4, how: '트레일러 등급 이상' },
+    { id: 'foodie', name: '미식', emoji: '🍜', accent: '#FB923C', bg: ['#7A431C', '#0A0E14'], got: Object.keys(state.reviews).length > 0 || state.courses.completed.length > 0, how: '맛집 리뷰 또는 코스 완주' },
   ]
 }
 
